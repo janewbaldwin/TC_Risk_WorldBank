@@ -1,0 +1,3 @@
+1) Downloaded on Jane's Macbook Pro from https://www.naturalearthdata.com/downloads/50m-cultural-vectors/50m-admin-0-countries-2/
+
+2) scp -r ne_50m_admin_0_countries/ jbaldwin@berimbau.ldeo.columbia.edu:/home/jbaldwin/WorldBank/
