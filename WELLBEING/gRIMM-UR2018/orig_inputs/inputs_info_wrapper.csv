@@ -1,0 +1,22 @@
+key,descriptor,weight_der,lower,upper,number_type,bandwith
+hazard_ratio_flood_poor,Exposure to riverine and coastal floods (poor),,,,small_percent,0.2
+hazard_ratio_fa__flood,Exposure to riverine and coastal floods (nonpoor),,,,small_percent,0.2
+v_cat_info__poor,Asset vulnerability for poor people,0.2,0,1,percent,0.2
+v_cat_info__nonpoor,Asset vulnerability for nonpoor people,0.2,0,1,percent,0.2
+shew_for_hazard_ratio,Access to early warning,1,,,percent,0.02
+gamma_SP_cat_info__poor,Share of social protection targeted to poor people,,,,percent,0.3
+macro_tau_tax,Total social protection spending,0.2,,,percent,0.2
+macro_borrow_abi,Contingent finance,1,,,percent,0.06
+macro_prepare_scaleup,Ready to scale-up social protection,1,,,percent,0.06
+axfin_cat_info__nonpoor,Access to finance for nonpoor people,,,,percent,0.3
+axfin_cat_info__poor,Access to finance for poor people,,,,percent,0.3
+k_cat_info__poor,Wealth of poor people,,,,dollar,0.3
+k_cat_info__nonpoor,Wealth of nonpoor people,,,,dollar,0.3
+hazard_ratio_fa__earthquake,Exposure to earthquakes,,,,small_percent,0.2
+hazard_ratio_fa__tsunami,Exposure to tsunamis,,,,small_percent,0.2
+hazard_ratio_fa__wind,Exposure to windstorms,,,,small_percent,0.2
+resilience,Resilience,1,,,percent,0.3
+risk,Risk to welfare,,,,risk,0.3
+risk_to_assets,Risk to assets,,,,risk,0.3
+macro_T_rebuild_K,Time to reconstruct,1,0,10,simple,0.2
+macro_gdp_pc_pp,GDP per capita,,,,dollar,0.2

@@ -1,0 +1,119 @@
+#deltas
+#fa (GAR), v (our table), avg_prd_k, shew (early warning), axfin, urbanization_rate, population, GDP, relative consumption poor/rich, tax (valuePDS/GDP)
+# relative consumption poor/rich
+#from pandas_helper import *
+import os, time
+import numpy as np
+import pandas as pd
+
+#define directories
+#model        = os.getcwd()
+model        = os.path.abspath('C:/Users/wb433125/OneDrive - WBG/gRIMM/gRIMM')
+inputs = model+'/inputs/'
+intermediate = model+'/intermediate/'
+output = model+'/output/'
+
+orig_inputs = model+'/orig_inputs/'
+orig_intermediate = model+'/orig_intermediate/'
+orig_output = model+'/results/'
+
+economy="country"
+
+#read original model data
+orig_results_file= orig_output+"results.csv"
+df_orig_results= pd.read_csv(orig_results_file).set_index(economy)
+
+df_orig_results[["orig_gdp_pc_pp","orig_pop"]]= pd.read_csv(orig_results_file).set_index(economy)[["gdp_pc_pp","pop"]]
+df_orig_results[["orig_urb","orig_avg_prod_k"]]= pd.read_csv(orig_results_file).set_index(economy)[["urbanization_rate","avg_prod_k"]]
+df_orig_results[["orig_tau_tax","orig_axfin"]]= pd.read_csv(orig_results_file).set_index(economy)[["tau_tax","axfin"]]
+df_orig_results[["orig_shew","orig_fa","orig_v","resilience"]]= pd.read_csv(orig_results_file).set_index(economy)[["shew","fa","v","resilience"]]
+df_orig_results[["dKtot","dWtot_currency"]]= pd.read_csv(orig_results_file).set_index(economy)[["dKtot","dWtot_currency"]]
+df_orig_results[["share1"]]=pd.read_csv(orig_inputs+"wb_data.csv").set_index(economy)[["share1"]]
+
+#set original variables
+#[orig_gdp_pc_pp,orig_pop,orig_shew,orig_fa,orig_v,orig_urb,orig_avg_prod_k,orig_tau_tax,orig_axfin] = df_orig_results[["orig_gdp_pc_pp","orig_pop","orig_shew","orig_fa","orig_v","orig_urb","orig_avg_prod_k","orig_tau_tax","orig_axfin"]]
+orig_gdp_pc_pp = df_orig_results["orig_gdp_pc_pp"]
+orig_pop = df_orig_results["orig_pop"]
+orig_shew = df_orig_results["orig_shew"]
+orig_fa = df_orig_results["orig_fa"]
+orig_v = df_orig_results["orig_v"]
+orig_urb = df_orig_results["orig_urb"]
+orig_avg_prod_k = df_orig_results["orig_avg_prod_k"]
+orig_tau_tax = df_orig_results["orig_tau_tax"]
+orig_axfin = df_orig_results["orig_axfin"]
+orig_share1 = df_orig_results["share1"]
+orig_resilience = df_orig_results["resilience"]
+orig_dKtot = df_orig_results["dKtot"]
+orig_dWtot = df_orig_results["dWtot_currency"]
+
+#stack them up
+orig_stacked = np.column_stack((orig_gdp_pc_pp,orig_pop,orig_shew,orig_fa,orig_v,orig_urb,orig_avg_prod_k,orig_tau_tax,orig_axfin))
+
+length_orig_stacked = len(orig_stacked)
+print ("Number of countries in ORIGINAL analysis is", length_orig_stacked)
+
+
+#read updated model data
+results_file= output+"results_tax_unif_poor_.csv"
+df_new_results=pd.read_csv(results_file).set_index(economy)
+
+df_new_results[["gdp_pc_pp","pop"]]= pd.read_csv(results_file).set_index(economy)[["gdp_pc_pp","pop"]]
+df_new_results[["urb","avg_prod_k"]]= pd.read_csv(results_file).set_index(economy)[["urbanization_rate","avg_prod_k"]]
+df_new_results[["tau_tax","axfin"]]= pd.read_csv(results_file).set_index(economy)[["tau_tax","axfin"]]
+df_new_results[["shew","fa","v","resilience"]]= pd.read_csv(results_file).set_index(economy)[["shew","fa","v","resilience"]]
+df_new_results[["share1"]]=pd.read_csv(inputs+"wb_data.csv").set_index(economy)[["share1"]]
+df_new_results[["dKtot","dWtot_currency"]]=pd.read_csv(results_file).set_index(economy)[["dKtot","dWtot_currency"]]
+
+#found = [economy for economy in df_orig_results[:,0] if economy in df_new_results[:,0]]
+
+
+#set updates variables
+#[gdp_pc_pp,pop,shew,fa,v,urb,avg_prod_k,tau_tax,axfin] = df_results[["gdp_pc_pp","pop","shew","fa","v","urb","avg_prod_k","tau_tax","axfin"]]
+gdp_pc_pp = df_new_results["gdp_pc_pp"]
+pop = df_new_results["pop"]
+shew = df_new_results["shew"]
+fa = df_new_results["fa"]
+v = df_new_results["v"]
+urb = df_new_results["urb"]
+avg_prod_k = df_new_results["avg_prod_k"]
+tau_tax = df_new_results["tau_tax"]
+axfin = df_new_results["axfin"]
+share1 = df_new_results["share1"]
+resilience = df_new_results["resilience"]
+dKtot = df_new_results["dKtot"]
+dWtot = df_new_results["dWtot_currency"]
+
+new_stacked = np.column_stack((gdp_pc_pp,pop,shew,fa,v,urb,avg_prod_k,tau_tax,axfin))
+
+length_new_stacked = len(new_stacked)
+print ("Number of countries in UPDATED analysis is", length_new_stacked)
+
+#compute deltas
+#vars_to_check = 9
+#(gdp_pc_pp,pop,shew,fa,v,urb,avg_prod_k,tau_tax,axfin)
+#for i in range(vars_to_check):
+#    delta = (new_stacked[:,i] - orig_stacked[:,i])/orig_stacked[:,i]
+
+#print delta
+
+d_gdp_pc = (gdp_pc_pp-orig_gdp_pc_pp)/orig_gdp_pc_pp
+d_pop = (pop-orig_pop)/orig_pop
+d_shew = (shew-orig_shew)/orig_shew
+d_fa = (fa-orig_fa)/orig_fa
+d_v = (v-orig_v)/orig_v
+d_urb = (urb-orig_urb)/orig_urb
+d_avg_prod_k=(avg_prod_k-orig_avg_prod_k)/orig_avg_prod_k
+d_tau_tax=(tau_tax-orig_tau_tax)/orig_tau_tax
+d_axfin=(axfin-orig_axfin)/orig_axfin
+d_share1=(share1-orig_share1)/orig_share1
+d_resilience=(resilience-orig_resilience)/orig_resilience
+d_dWtot = (dWtot - orig_dWtot)/orig_dWtot
+d_dKtot = (dKtot - orig_dKtot)/orig_dKtot
+
+deltas = pd.DataFrame({"d_gdp_pc" : d_gdp_pc,"d_pop":d_pop,"d_shew":d_shew,"d_fa":d_fa,"d_v":d_v,"d_urb":d_urb,"d_avg_prod_k":d_avg_prod_k,"d_tau_tax":d_tau_tax,"d_axfin":d_axfin,"d_share1":d_share1,"d_resilience":d_resilience,"d_dWtot":d_dWtot,"d_dKtot":d_dKtot})
+print (deltas)
+#stacky = pd.DataFrame(np.column_stack((d_gdp_pc,d_pop,d_shew,d_fa,d_v,d_urb,d_avg_prod_k,d_tau_tax,d_axfin,d_share1,d_resilience,d_dWtot,d_dKtot)).set_index(economy),columns=['d_gdp_pc','d_pop','d_shew','d_fa','d_v','d_urb','d_avg_prod_k','d_tau_tax','d_axfin','d_share1','d_resilience','d_dWtot','d_dKtot'])
+#print stacky
+
+#save out deltas
+deltas.to_csv(output+'delta_sheet.csv',encoding="utf-8")

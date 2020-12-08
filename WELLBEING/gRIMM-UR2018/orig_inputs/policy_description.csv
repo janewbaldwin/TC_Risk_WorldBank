@@ -1,0 +1,10 @@
+key,descriptor,increment
+shew,Access to early warning ({sign}{dh:.0%}),0.1
+prepare_scaleup, Scale-up preparedness ({sign}{dh:.0%}),0.1
+borrow_abi,Ability to scale-up ({sign}{dh:.0%}),0.1
+T_rebuild_K,Time to reconstruct ({sign}{dh:.0f} yr),1
+tau_tax,Redistribution ({sign}{dh:.0%}),0.1
+fa,Exposure ({sign}{dh:.0%}), 0.1
+v, Asset vulnerability ({sign}{dh:.0%}), 0.1
+k,Wealth ({sign}{dh:.0f} USD PPP pc),100
+gamma_SP,Share of transfers ({sign}{dh:.0%}),0.1
