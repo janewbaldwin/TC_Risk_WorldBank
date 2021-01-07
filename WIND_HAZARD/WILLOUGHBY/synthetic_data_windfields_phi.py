@@ -365,38 +365,7 @@ def distancefrompoint(lon, lat, X1, Y1):
 # Set up function to run wind fields in parallel
 # 32 processors total available
 
-# Calculate wind field without adding in asymmetry
-def windfield_sym(lon_nS,lat_nS,wspd_nS,rmax_nS,i):
-    loni = lon_nS[i]
-    lati = lat_nS[i]
-    wspdi = wspd_nS[i]
-    rmaxi = rmax_nS[i]
-    
-    # Calculate Willoughby Profile
-    radius_max = 500
-    radius_precision = 1
-    profile = W_profile(lati, rmaxi, wspdi, radius_max, radius_precision)
-    radius = np.arange(0,radius_max + radius_precision, radius_precision)
-    
-    # Create dict look-up table from Willoughby Profile
-    wspdlookup = dict(zip(radius, profile))
-    
-    # Calculate distance from center of storm
-    distance = distancefrompoint(loni, lati, X1, Y1) # distance in km
-    
-    # Round distance values to nearest whole number
-    distance = distance.astype(int)
-
-    # Remap radii to windspeed
-    wspdmap = np.zeros(np.shape(distance))
-    for r in radius:
-        wspdmap[np.where(distance == r)] = wspdlookup[r]
-        wspdmap[np.where(distance > radius_max)] = 0 # added 10-27-20
-    
-    return wspdmap
-
-
-# Calculate wind field with asymmetry:
+# Calculate wind field with asymmetry, subtracting max rFactor*vt from wspdi before calculating profile:
 def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     loni = lon_nS[i]
     lati = lat_nS[i]
@@ -409,15 +378,6 @@ def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     angle = np.arctan2((Y1-lati),(X1-loni)) - trDiri # define angle relative to track direction 
     vt = -tri*np.cos(np.pi/2 - angle) # calculate tangential wind; remove minus if southern hemisphere
     
-    # Calculate Willoughby Profile
-    radius_max = 500
-    radius_precision = 1
-    profile = W_profile(lati, rmaxi, wspdi, radius_max, radius_precision)
-    radius = np.arange(0,radius_max + radius_precision, radius_precision)
-    
-    # Create dict look-up table from Willoughby Profile
-    wspdlookup = dict(zip(radius, profile))
-    
     # Calculate distance from center of storm
     distance = distancefrompoint(loni, lati, X1, Y1) # distance in km
     
@@ -426,6 +386,17 @@ def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     
     # Calculate rFactor to modulate track correction
     rFactor = utility.translationspeedFactor(old_div(distance,rmaxi))
+    asymcorrec = rFactor*vt
+    max_asymcorrec = 0.7*tri # 0.7 from utility.translationspeedFactor structure. tri = max vt. Alternatively could do np.max(rFactor)*np.max(vt), but this should be faster and more exact.
+    
+    # Calculate Willoughby Profile
+    radius_max = 500
+    radius_precision = 1
+    profile = W_profile(lati, rmaxi, wspdi-max_asymcorrec, radius_max, radius_precision)
+    radius = np.arange(0,radius_max + radius_precision, radius_precision)
+    
+    # Create dict look-up table from Willoughby Profile
+    wspdlookup = dict(zip(radius, profile))
 
     # Remap radii to windspeed
     wspdmap = np.zeros(np.shape(distance))
@@ -433,12 +404,10 @@ def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
         wspdmap[np.where(distance == r)] = wspdlookup[r]
     
     #Add track direction correction
-    wspdmap = wspdmap+(rFactor*vt)
+    wspdmap = wspdmap + asymcorrec
     
     # Set to 0 outside radius_max
     wspdmap[np.where(distance > radius_max)] = 0 # added 10-27-20
-    
-    #wspdmaps.append(wspdmap)
     
     return wspdmap
 
@@ -470,7 +439,7 @@ missed_tries = 0
 for nS in np.arange(0,len(wspd_landfall),1):
     
     # Info that is consistent across ensemble members
-    notnans = ~np.isnan(lon_landfall[nS][:])
+    notnans = ~np.isnan(tr_landfall[nS][:]) # remove nan points for final point that doesn't exist for track speed
     lon_nS = lon_landfall[nS][notnans]
     lat_nS = lat_landfall[nS][notnans]
     days_nS = days_landfall[nS][notnans]
