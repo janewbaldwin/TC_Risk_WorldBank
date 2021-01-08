@@ -35,7 +35,7 @@ lonmax = 126.537423944
 latmax = 18.5052273625
 
 # Load subset data of landfalling storms over Philippines
-dat = xr.open_dataset('ibtracs_landfall_philippines.nc')
+dat = xr.open_dataset('/home/jbaldwin/WorldBank/WIND_HAZARD/IBTRACS_LANDFALL_TRACKS/ibtracs_landfall_philippines.nc')
 lon = np.array(dat.lon)
 lat = np.array(dat.lat)
 wspd = np.array(dat.wspd)/1.944 # convert from kts to m/s
@@ -273,8 +273,8 @@ for nS in np.arange(0,len(wspd_landfall)+1,1):
          )
     
         #Write to netcdf
-        direc = '/data2/jbaldwin/WINDFIELDS/PHI_SWATHS/'
-        filename = 'wspd_phi_swaths.nc'
+        direc = '/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI_SWATHS/'
+        filename = 'wspd_phi_swaths_maxasymcorrec.nc'
         #ds.to_netcdf(direc+filename,mode='a',unlimited_dims = ["nS"])
         if path.exists(direc+filename): # concatenate if file exists
              ds_swaths = xr.open_dataset(direc+filename)
