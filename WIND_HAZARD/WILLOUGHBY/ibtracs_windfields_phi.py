@@ -125,6 +125,8 @@ for i in range(np.shape(lon)[1]):
         iTs = np.unique(iTs) # remove wind field points that repeat
         iTlandfall_forwindfield_phi.append(list(iTs))
     iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x > 0, iTlandfall_forwindfield_phi[i])) # remove negative numbers from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/ 
+    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x <= np.max(np.where(~np.isnan(tr[:,i]))), iTlandfall_forwindfield_phi[i])) # remove numbers above max time step for each storm from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/ 
+
             
 # Aggregate only storm points (lat,lon,wspd) where might be making landfall
 wspd_landfall = []
@@ -236,13 +238,12 @@ for nS in np.arange(0,len(wspd_landfall),1):
     print(nS)
     
     # Select data for 1 storm
-    notnans = ~np.isnan(tr_landfall[nS][:]) # remove nan points from TC dissipating sooner than 1 day after first landfall, and for last time step that track speed can't be calculated for
-    wspd_nS = wspd_landfall[nS][notnans]
-    lon_nS = lon_landfall[nS][notnans]
-    lat_nS = lat_landfall[nS][notnans]
-    days_nS = days_landfall[nS][notnans]
-    tr_nS = tr_landfall[nS][notnans]
-    trDir_nS = trDir_landfall[nS][notnans]
+    wspd_nS = wspd_landfall[nS][:]
+    lon_nS = lon_landfall[nS][:]
+    lat_nS = lat_landfall[nS][:]
+    days_nS = days_landfall[nS][:]
+    tr_nS = tr_landfall[nS][:]
+    trDir_nS = trDir_landfall[nS][:]
     
     # Calculate radius of maximum wind
     rmax_nS = utility.knaff15(wspd_nS*1.944, lat_nS)  #  wspd should be input in kts, outputs in km
@@ -254,15 +255,13 @@ for nS in np.arange(0,len(wspd_landfall),1):
     try:
         wspdmaps = Parallel(n_jobs=16, prefer="threads")(delayed(windfield)(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i) for i in range(stormpoints))    
         wspdmaps = np.expand_dims(wspdmaps,axis = 0)
+        wspdmaps = np.abs(wspdmaps) # take absolute value for places asymmetry correction overpowers wind speed
         swath = np.nanmax(wspdmaps, axis = 1) # Calculate swath over windfields; nanmax to ignore timepoints that don't have windfields
-        
-        # Days
-        days_fornc = days_landfall[nS][notnans]
         
          # Create swath dataset
         ds = xr.Dataset(
          {"swath": (("nS", "lat", "lon"), swath),
-          "days": (("nS","iT"), np.expand_dims(days_fornc,axis=0)),
+          "days": (("nS","iT"), np.expand_dims(days_nS,axis=0)),
           "year": (("nS"), [year[nS]])},
              coords={
             "nS":np.array([nS]),
@@ -274,7 +273,7 @@ for nS in np.arange(0,len(wspd_landfall),1):
     
         #Write to netcdf
         direc = '/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI_SWATHS/'
-        filename = 'wspd_phi_swaths_maxasymcorrec_ibtracsv04r00.nc'
+        filename = 'wspd_phi_swaths_maxasymcorrec_ibtracsv04r00_2-10-21.nc'
         #ds.to_netcdf(direc+filename,mode='a',unlimited_dims = ["nS"])
         if path.exists(direc+filename): # concatenate if file exists
              ds_swaths = xr.open_dataset(direc+filename)
