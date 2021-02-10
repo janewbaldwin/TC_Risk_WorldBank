@@ -52,23 +52,12 @@ latmin = 5.58100332277
 lonmax = 126.537423944
 latmax = 18.5052273625
 
-# Indices of bounding box for Philippines
-#buffer = 15 # additional space around the Philippines, in indices of the land mask
-#lonmini = np.argmin(np.abs(llon-lonmin))-buffer
-#lonmaxi = np.argmin(np.abs(llon-lonmax))+buffer
-#latmini = np.argmin(np.abs(llat-latmin))+buffer
-#latmaxi = np.argmin(np.abs(llat-latmax))-buffer
-
-# Create land mask for just the Philippines
-#ldmask_phi = np.zeros(np.shape(ldmask))
-#ldmask_phi[latmaxi:latmini+1,lonmini:lonmaxi+1] = ldmask[latmaxi:latmini+1,lonmini:lonmaxi+1]
-
 
 # In[160]:
 
 
 # File number to examine
-fileN = '006'
+fileN = sys.argv[1] # string eg 006 (converted to string by sys)
 
 
 # # Initial subsetting of landfalling TCs over Philippines:
@@ -231,11 +220,18 @@ trDir = np.arctan2(lat_diff, lon_diff) # track angle
 nscale = 24 # convert from 6-hr to 15-min timesteps (factor of 6*4=24)
 lon = ld.rescale_matrix(lon,nscale,0) # int for time interpolated 
 lat = ld.rescale_matrix(lat,nscale,0)
-wspd = ld.rescale_matrix(wspd,nscale,1)
+wspd = ld.rescale_matrix(wspd,nscale,1) # last input set to 1 not 0 because wind speed has ensemble members so extra axis
 days = ld.rescale_matrix(days,nscale,0)
 tr = ld.rescale_matrix(tr,nscale,0)
 trDir = ld.rescale_matrix(trDir,nscale,0)
 
+
+# Remove points that don't have track speed/ direction calculation
+tr_len = np.shape(tr)[0] # number of time points in track
+lon = lon[:tr_len,:]
+lat = lat[:tr_len,:]
+wspd = wspd[:,:tr_len,:]
+days = days[:tr_len,:]
 
 # In[172]:
 
@@ -311,7 +307,7 @@ for i in range(np.shape(lon)[1]):
         iTs = np.unique(iTs) # remove wind field points that repeat
         iTlandfall_forwindfield_phi.append(list(iTs))
     iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x > 0, iTlandfall_forwindfield_phi[i])) # remove negative numbers from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/ 
-
+    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x <= np.max(np.where(~np.isnan(lon[:,i]))), iTlandfall_forwindfield_phi[i])) # remove numbers above max time step for each storm from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/
 
 # In[179]:
 
@@ -392,7 +388,7 @@ def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     # Calculate Willoughby Profile
     radius_max = 500
     radius_precision = 1
-    profile = W_profile(lati, rmaxi, wspdi-max_asymcorrec, radius_max, radius_precision)
+    profile = W_profile(lati, rmaxi, wspdi-max_asymcorrec, radius_max, radius_precision) # subtracting the maximum value of the trackspeed correction from the windspeed that is input to the Willoughby profile; this ensures that the maximum windspeed of the windfield is not higher than that in ibtracs.
     radius = np.arange(0,radius_max + radius_precision, radius_precision)
     
     # Create dict look-up table from Willoughby Profile
@@ -409,6 +405,8 @@ def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     # Set to 0 outside radius_max
     wspdmap[np.where(distance > radius_max)] = 0 # added 10-27-20
     
+    #wspdmaps.append(wspdmap)
+    
     return wspdmap
 
 
@@ -420,12 +418,6 @@ X = np.arange(116.5,127.6,0.1) #Philippines lon rounded to nearest whole degree 
 Y = np.arange(4.5,19.1,0.1) #Philippines lon rounded to nearest whole degree (down for min, up for max), plus 0.5deg further for wind radius
 X1, Y1 = np.meshgrid(X,Y)
 
-# Determine the max iT_lengths
-iT_lengths = []
-for i in np.arange(0,len(iTlandfall_forwindfield_phi),1):
-    iT_lengths.append(len(iTlandfall_forwindfield_phi[i]))
-iT_length_max = np.max(iT_lengths)
-
 
 # In[257]:
 
@@ -433,18 +425,18 @@ iT_length_max = np.max(iT_lengths)
 #%%time
 
 # Make sure to delete ens_swaths.nc and wspd_phi_swaths+fileN+.nc before running, otherwise won't pass through properly
-direc = '/data2/jbaldwin/WINDFIELDS/ERAInterim_WPC/PHI_SWATHS/'
+direc = '/data2/jbaldwin/WINDFIELDS/ERAInterim_WPC/PHI_SWATHS/WPC_'+fileN+'/'
+print('Starting to run out'+filename+', putting results in'+direc+'.')
 ensembleNum = dat.ensembleNum.values
 missed_tries = 0
 for nS in np.arange(0,len(wspd_landfall),1):
     
     # Info that is consistent across ensemble members
-    notnans = ~np.isnan(tr_landfall[nS][:]) # remove nan points for final point that doesn't exist for track speed
-    lon_nS = lon_landfall[nS][notnans]
-    lat_nS = lat_landfall[nS][notnans]
-    days_nS = days_landfall[nS][notnans]
-    tr_nS = tr_landfall[nS][notnans]
-    trDir_nS = trDir_landfall[nS][notnans]
+    lon_nS = lon_landfall[nS][:]
+    lat_nS = lat_landfall[nS][:]
+    days_nS = days_landfall[nS][:]
+    tr_nS = tr_landfall[nS][:]
+    trDir_nS = trDir_landfall[nS][:]
     swaths = np.zeros([1,len(ensembleNum),len(Y),len(X)])
     
     # Calculate wind swath for each ensemble member
@@ -472,9 +464,12 @@ for nS in np.arange(0,len(wspd_landfall),1):
     
             # Calculate wind fields in parallel
             stormpoints = np.shape(wspd_nS_ensN)[0]  
-
-            wspdmaps = Parallel(n_jobs=3, prefer="threads")(delayed(windfield)(lon_nS_ensN,lat_nS_ensN,wspd_nS_ensN,rmax_nS_ensN,tr_nS_ensN,trDir_nS_ensN,i) for i in range(stormpoints))    
-            swaths[0,ensN,:,:] = np.nanmax(wspdmaps, axis = 0) # Calculate swath over windfields; nanmax to ignore timepoints that don't have windfields
+            try:
+                wspdmaps = Parallel(n_jobs=3, prefer="threads")(delayed(windfield)(lon_nS_ensN,lat_nS_ensN,wspd_nS_ensN,rmax_nS_ensN,tr_nS_ensN,trDir_nS_ensN,i) for i in range(stormpoints))    
+                wspdmaps = np.abs(wspdmaps) # take absolute value for places asymmetry correction overpowers wind speed
+                swaths[0,ensN,:,:] = np.nanmax(wspdmaps, axis = 0) # Calculate swath over windfields; nanmax to ignore timepoints that don't have windfields
+            except:
+                missed_tries += 1
                 
     # Create swath dataset
     ds_ens = xr.Dataset(
@@ -494,4 +489,4 @@ for nS in np.arange(0,len(wspd_landfall),1):
     filename = 'wspd_phi_swaths_'+fileN+'_'+str(nS)+'.nc'
     ds_ens.to_netcdf(direc+filename,mode='w',unlimited_dims = ["nS"])
 
-print("My program took", time.time() - start_time, "to run.")
+print("My program took", time.time() - start_time, "to run and had ", missed_tries, " missed tries.")
