@@ -225,14 +225,6 @@ days = ld.rescale_matrix(days,nscale,0)
 tr = ld.rescale_matrix(tr,nscale,0)
 trDir = ld.rescale_matrix(trDir,nscale,0)
 
-
-# Remove points that don't have track speed/ direction calculation
-tr_len = np.shape(tr)[0] # number of time points in track
-lon = lon[:tr_len,:]
-lat = lat[:tr_len,:]
-wspd = wspd[:,:tr_len,:]
-days = days[:tr_len,:]
-
 # In[172]:
 
 
@@ -307,7 +299,7 @@ for i in range(np.shape(lon)[1]):
         iTs = np.unique(iTs) # remove wind field points that repeat
         iTlandfall_forwindfield_phi.append(list(iTs))
     iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x > 0, iTlandfall_forwindfield_phi[i])) # remove negative numbers from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/ 
-    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x <= np.max(np.where(~np.isnan(lon[:,i]))), iTlandfall_forwindfield_phi[i])) # remove numbers above max time step for each storm from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/
+    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x <= np.max(np.where(~np.isnan(tr[:,i]))), iTlandfall_forwindfield_phi[i])) # remove numbers above max time step for each storm from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/
 
 # In[179]:
 
@@ -486,7 +478,7 @@ for nS in np.arange(0,len(wspd_landfall),1):
         )
             
     #Write each track with its many ensemble members to netcdf        
-    filename = 'wspd_phi_swaths_'+fileN+'_'+str(nS)+'.nc'
+    filename = 'wspd_phi_swaths_'+fileN+'_'+str(nS).zfill(3)+'.nc'
     ds_ens.to_netcdf(direc+filename,mode='w',unlimited_dims = ["nS"])
 
 print("My program took", time.time() - start_time, "to run and had ", missed_tries, " missed tries.")
