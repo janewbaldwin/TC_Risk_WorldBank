@@ -107,7 +107,8 @@ days_int = ld.rescale_matrix(days,nscale,0)
 
 
 # Calculate which storms and when make landfall in Philippines
-nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon_int,lat_int,wspd_int)
+llon_midpoint = 180
+nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon_int,lat_int,wspd_int,llon_midpoint)
 
 
 # In[15]:
@@ -202,7 +203,7 @@ trDir = ld.rescale_matrix(trDir,nscale,0)
 
 
 # Calculate which storms and when make landfall in Philippines
-nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon,lat,wspd)
+nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon,lat,wspd,llon_midpoint)
 
 
 # ### Optional: Plot to check landfall calculation.
