@@ -1,0 +1,631 @@
+#!/usr/bin/env python
+from __future__ import print_function
+from future.utils import raise_
+from numpy import *
+from datetime import datetime
+from netCDF4 import Dataset
+import sys
+import numpy as np
+import matplotlib.pyplot as plt
+import matplotlib.colors as mcolors
+from bisect import bisect_left, bisect_right
+import scipy
+import copy
+def date_interpolation(dateInput,fileInput):
+    """
+    fileInput is a 3-d gloabl fields  with time-axis on the first column, eg. fileInput[it,ix,iy]
+    the function return fields interpolated linearly to date on dateInput.
+    if dateInput.month is December, then it returns Dec. field
+    """
+    if dateInput.day >= 15:
+       if dateInput.month < 12:
+          date0 = datetime(dateInput.year,dateInput.month,15,0,0)
+          date1 = datetime(dateInput.year,dateInput.month+1,15,0,0) 
+          dfdays = (dateInput-date0).days
+          xp = [0, (date1-date0).days]
+          ratio = np.interp(dfdays,xp,[0,1])
+          fileOutput = fileInput[dateInput.month-1,:,:]*(1-ratio)+fileInput[dateInput.month,:,:]*(ratio)
+       else:
+          fileOutput= fileInput[dateInput.month-1,:,:]
+    else:
+       if dateInput.month == 1:
+          fileOutput= fileInput[dateInput.month-1,:,:]
+       else:
+          date0 = datetime(dateInput.year,dateInput.month-1,15,0,0)
+          date1 = datetime(dateInput.year,dateInput.month,15,0,0)
+          dfdays = (dateInput-date0).days
+          xp = [0, (date1-date0).days]
+          ratio = np.interp(dfdays,xp,[0,1])
+          fileOutput = fileInput[dateInput.month-2,:,:]*(1-ratio)+fileInput[dateInput.month-1,:,:]*ratio
+    return fileOutput
+
+def running_mean(hist,n):
+    """
+    giving (n+2)-th running mean of an 1-D array hist
+    eg. for 3 running mean, n = 1
+        for 5 running mean, n = 2
+    """
+    hist1 = copy.copy(hist[:])*0.0
+    for ihh in range(0+n,hist.shape[0]-n-1,1):
+        count = 0.0
+        for inn in np.arange(-n,n+1,1):
+            hist1[ihh] = hist1[ihh]+hist[ihh+inn]
+            count += 1.0
+        hist1[ihh] = np.float(hist1[ihh])/np.float(count)
+    for ihh in range(0,n,1):
+        hist1[ihh] = copy.copy(hist[ihh])
+    for ihh in range(hist.shape[0]-n-1,hist.shape[0],1):
+        hist1[ihh] = copy.copy(hist[ihh])
+    return hist1
+
+def nan_helper(y):
+    """Helper to handle indices and logical indices of NaNs.
+
+    Input:
+        - y, 1d numpy array with possible NaNs
+    Output:
+        - nans, logical indices of NaNs
+        - index, a function, with signature indices= index(logical_indices),
+          to convert logical indices of NaNs to 'equivalent' indices
+    Example:
+        >>> # linear interpolation of NaNs
+        >>> nans, x= nan_helper(y)
+        >>> y[nans]= np.interp(x(nans), x(~nans), y[~nans])
+    """
+
+    return np.isnan(y), lambda z: z.nonzero()[0]
+def lagged_corr(x,n):
+    """
+    calculate n times lagged correlation of an 1-D array,x
+    
+    """
+    from scipy.stats import nanmean
+
+    a_minus = nanmean(x[0:x.shape[0]-n]) # the fist X.shape[0]-n element
+    a_plus = nanmean(x[n:])
+    a0 = np.nansum((x[0:x.shape[0]-n]-a_minus)*(x[n:]-a_plus))
+    a1 = np.nansum((x[0:x.shape[0]-n]-a_minus)**2) 
+    a2 = np.nansum((x[n:]-a_plus)**2) 
+    rn = a0/np.sqrt(a1*a2)
+     
+    return rn 
+
+def find(lst, a):
+    return [i for i, x in enumerate(lst) if x==a]
+
+def gauss_kern(size, sizey=None):
+    """ Returns a normalized 2D gauss kernel array for convolutions """
+    size = int(size)
+    if not sizey:
+        sizey = size
+    else:
+        sizey = int(sizey)
+    x, y = scipy.mgrid[-size:size+1, -sizey:sizey+1]
+    g = scipy.exp(-(x**2/float(size)+y**2/float(sizey)))
+    return g / g.max()
+
+
+def gauss (x,*p):
+        A, mu, sigma = p
+        return (1.0/np.sqrt(2*np.pi*sigma**2))*np.exp(-(x-mu)**2/(2.*sigma**2))
+
+
+def find_range(array, a):
+    """ 
+    Return two indices in which a is in between in an array
+    array has to be a monotonic increase or decrease array
+    """
+    if (diff(array)<0).any(): 
+       start = bisect_right(array[::-1],a)
+       end = bisect_left(array[::-1],a)
+       end = array.shape[0]-start
+       start = end
+    else:
+       start = bisect_right(array,a)
+       end = bisect_left(array,a)
+    return (start-1, end)
+
+def make_colormap(seq):
+    """
+    Return a LinearSegmentedColormap
+    seq: a sequence of floats and RGB-tuples. The floats should be increasing
+    and in the interval (0,1).
+    """
+    seq = [(None,) * 3, 0.0] + list(seq) + [1.0, (None,) * 3]
+    cdict = {'red': [], 'green': [], 'blue': []}
+    for i, item in enumerate(seq):
+        if isinstance(item, float):
+            r1, g1, b1 = seq[i - 1]
+            r2, g2, b2 = seq[i + 1]
+            cdict['red'].append([item, r1, r2])
+            cdict['green'].append([item, g1, g2])
+            cdict['blue'].append([item, b1, b2])
+    return mcolors.LinearSegmentedColormap('CustomMap', cdict)
+
+def uv2polar(u,v,x,y):
+    """
+    Converts vector components from Cartesian to polar
+    coordinate system.
+    """
+    r  = np.sqrt(x**2+y**2)
+    th = np.arctan2(y,x)
+    Vr =  u*np.cos(th)+v*np.sin(th)
+    Vt = -u*np.sin(th)+v*np.cos(th)
+    return Vt,Vr
+
+
+
+def azimuthAverageQuadrants(field,x,y,rmax,dr):
+    """
+    Computes an azimuthal average of a field defined on x and y,
+    with a radial resolution of dr (km), out to rmax (km).
+    """
+    from scipy.stats import nanmean
+    r  = np.sqrt(x**2+y**2)
+    rad = np.arange(0,rmax+dr,dr)
+    radius = np.array([])
+    FR = np.array([])
+    FL = np.array([])
+    RL = np.array([])
+    RR = np.array([])
+
+    # Define masks:
+    frontRight = (x>=0) & (y>=0)
+    frontLeft  = (x<0)  & (y>=0)
+    rearLeft   = (x<0)  & (y<0)
+    rearRight  = (x>=0) & (y<0)
+
+    for r0 in rad:
+        radius = np.append(radius,r0+0.5*dr)
+        FR = np.append(FR,nanmean(field[ (r>=r0) & (r<r0+dr) & frontRight ]))
+        FL = np.append(FL,nanmean(field[ (r>=r0) & (r<r0+dr) & frontLeft  ]))
+        RL = np.append(RL,nanmean(field[ (r>=r0) & (r<r0+dr) & rearLeft   ]))
+        RR = np.append(RR,nanmean(field[ (r>=r0) & (r<r0+dr) & rearRight  ]))
+    return radius,FR,FL,RL,RR
+
+
+
+def azimuthAverage(field,x,y,rmax,dr):
+    """
+    Computes an azimuthal average of a field defined on x and y,
+    with a radial resolution of dr (km), out to rmax (km).
+    """
+    from scipy.stats import nanmean
+    r = np.sqrt(x**2+y**2)
+    rad = np.arange(0,rmax+dr,dr)
+    fieldMean = np.array([])
+    for r0 in rad:
+        fieldMean = np.append(fieldMean,nanmean(field[ (r>=r0) & (r<r0+dr) ]))
+    return rad,fieldMean
+
+
+
+class ncdata(object):
+    """
+    """
+    def __init__(self,filename):
+        """
+        """
+        self.source = filename
+        nc = Dataset(filename,'r')
+        for item in nc.variables.items():
+            setattr(self,item[0],item[1][:])
+        nc.close()
+
+
+def getModelField(filename,fieldname):
+    """
+    A function to read a 2-D field from a NetCDF output file.
+    Currently supported are wrfout and cplout files.
+    """
+    nc = Dataset(filename,'r')
+    field = nc.variables[fieldname][:]
+    nc.close()
+
+    dims = field.shape
+
+    if dims.__len__() == 2:
+        field = np.reshape(field,dims)
+    if dims.__len__() == 3:
+        field = np.reshape(field,(dims[1],dims[2]))
+
+    return field
+
+
+
+def int2str(num,l):
+    """
+    Given an integer num and desired length l, returns the str(num)
+    with appended leading zeroes to match the size l.
+    """
+    if len(str(num))<l:
+        return (l-len(str(num)))*'0'+str(num)
+    else:
+        return str(num)
+
+def num2str(num,precision):
+    """
+    Given an float number and desired precision number precision, returm
+    str(num)	
+    """ 
+    return "%0.*f"%(precision,num)
+
+
+def printLog(message):
+    """
+    Prints message to stdout with current time logging.
+    """
+    now = datetime.now().isoformat().replace('T',' ')
+    print(now+' : '+message)
+    sys.stdout.flush()
+
+
+
+def iso2datetime(timeStr):
+    """
+    Returns a datetime instance based on 
+    a time string in form YYYY-MM-DD_hh:mm:ss.
+    """
+    date = timeStr.split('-')
+    YYYY = date[0]
+    MM = date[1]
+    time = date[2].split('_')
+    DD = time[0]
+    [hh,mm,ss] = time[1].split(':')
+    return datetime(int(YYYY),int(MM),int(DD),int(hh),int(mm),int(ss))
+
+
+
+def strTupleFromDatetime(t):
+    """
+    Returns (YYYY,MM,DD,hh,mm,ss) strings from datetime.datetime instance t.
+    """
+    return (int2str(t.year,4),int2str(t.month,2),int2str(t.day,2),\
+            int2str(t.hour,2),int2str(t.minute,2),int2str(t.second,2))
+
+
+
+def isoformat2datetime(timeStr):
+    """
+    Given an ISO format time string, YYYY-MM-DDThh:mm:ss.mmm, 
+    returns a datetime object.
+    """
+    year        = int(timeStr[0:4])
+    month       = int(timeStr[5:7])
+    day         = int(timeStr[8:10])
+    hour        = int(timeStr[11:13])
+    minute      = int(timeStr[14:16])
+    second      = int(timeStr[17:19])
+    if len(timeStr)>19:
+        millisecond = int(timeStr[20:])
+    else:
+        millisecond = 0
+    return datetime(year,month,day,hour,minute,second,millisecond)
+
+
+
+def readTextFile(filename):
+    """
+    Returns a list where each element contains text from each line 
+    of given text file.
+    """
+    return [line.rstrip() for line in open(filename,'r').readlines()]
+
+
+
+
+def replaceLineInTextFile(filename,matchstr,string,n):
+    """
+    Replace n occurences of matchstr in filename with string.
+    """
+    replaced = 0
+    f = readTextFile(filename)
+    for line in f:
+        if matchstr in line:
+            f[f.index(line)] = string
+            replaced += 1
+        if replaced == n:break
+    fout = open(filename,'w')
+    for line in f:fout.write(line+'\n')
+    fout.close()
+
+
+
+def uv2dir(u,v,convention='math',units='rad'):
+    """
+    Converts u and v components to vector direction in mathematical,
+    meteorological, or oceanographical convention, in radians or degrees.
+
+    Arguments:
+
+    u,v: 
+        x and y vector components
+
+    convention:
+        "math" = mathematical (anti-clockwise from east, default)
+        "met"  = meteorological (clockwise from north), reversed
+        "ocn"  = oceanographical (clockwise from north)
+
+    units:
+        "rad" = radians
+        "deg" = degrees 
+    """
+    u = np.array(u)
+    v = np.array(v)
+
+    if convention == 'math':wdir = np.arctan2(v,u)
+    if convention == 'met': wdir = np.arctan2(-u,-v)
+    if convention == 'ocn': wdir = np.arctan2(u,v)
+
+    d2r = 180./np.pi
+
+    if units == 'deg':
+        wdir *= d2r
+        if wdir.size>1:
+            wdir[wdir<0.] += 360.
+        else:
+            if wdir<0:wdir += 360.
+
+    return wdir
+
+
+def dir2uv(wdir,convention='math'):
+    """
+    """
+    wdir = np.array(wdir)
+
+    if convention == 'math':
+        u = np.cos(wdir)        
+        v = np.sin(wdir)        
+    elif convention == 'met':
+        u = -np.sin(wdir)        
+        v = -np.cos(wdir)        
+    elif convention == 'ocn':
+        u =  np.sin(wdir)        
+        v =  np.cos(wdir)        
+       
+    return u,v 
+
+
+def argminDatetime(time0,time):
+    """
+    Returns the index of datetime array time for which
+    the datetime time0 is nearest.
+    """
+    time = np.array(time)
+    n0 = 0
+    delt = np.abs(time[-1]-time[0])
+    for n in range(time.size):
+        if np.abs(time0-time[n]) < delt:
+            delt = np.abs(time0-time[n])
+            n0 = n
+    return n0
+
+
+def virtualTemperature(T,r):
+    """
+    """
+    return T*(0.622+r)/(0.622*(1+r))
+
+
+def reflectivity(Qv,Qr,Qs,T,p):
+    """
+    """
+    Qv = np.array(Qv)
+    Qr = np.array(Qr)
+    Qs = np.array(Qs)
+    T  = np.array(T)
+    p  = np.array(p)
+ 
+    # Constants:
+    r1          = 1E-15
+    ron         = 8E6
+    ron2        = 1E10
+    son         = 2E7
+    gon         = 5E7
+    ron_min     = 8E6
+    ron_qr0     = 1E-4
+    ron_delqr0  = 0.25*ron_qr0
+    ron_const1r = 0.5*(ron2-ron_min)
+    ron_const2r = 0.5*(ron2+ron_min)
+    gamma_seven = 720.
+    rho_r       = 1000.              # Rainwater density
+    rho_s       = 100.               # Snow density
+    rho_g       = 400.               # Groupel density
+    alpha       = 0.224
+    Rd          = 287.               # Gas constant for dry air
+    twopi       = 2*np.pi
+   
+    factor_r = np.ones(T.shape)*gamma_seven*1E18*(1./(np.pi*rho_r))**1.75
+    factor_s = np.ones(T.shape)*gamma_seven*1E18*(1./(np.pi*rho_s))**1.75 \
+                                                *(rho_s/rho_r)**2*alpha
+    #factor_g = np.ones(T.shape)*gamma_seven*1E18*(1./(np.pi*rho_g))**1.75 \
+    #                                            *(rho_g/rho_r)**2*alpha
+
+    # Air density:
+    rhoair = p/(Rd*virtualTemperature(T,Qv))
+
+    # Adjust factor for brightband, where snow or graupel particle
+    # scatters like liquid water (alpha=1.0) because it is assumed to
+    # have a liquid skin.
+    factor_s[T>273.15] /= alpha
+    #factor_g[T>273.15] /= alpha
+    
+    # Calculate variable intercept parameters:
+    T -= 273.15
+    T[T>-0.001] = -0.001
+
+    sonv = 2E6*np.exp(-0.12*T)
+    sonv[sonv>2E8] = 2E8
+   
+    ronv = ron2
+    ronv[Qr>r1] = ron_const1r*np.tanh((ron_qr0-Qr)/ron_delqr0) \
+                 +ron_const2r    
+
+    # Total equivalent reflectivity factor (z_e, in mm^6 m^-3) is
+    # the sum of z_e for each hydrometeor species:
+    z_e = factor_r*(rhoair*Qr)**1.75/ronv**0.75 \
+         +factor_s*(rhoair*Qs)**1.75/sonv**0.75
+   
+    # Adjust small values of Z_e so that dBZ is no lower than -30:
+    z_e[z_e<0.001] = 0.001 
+
+    return 10*np.log_10(z_e)
+
+def getTextFile(filename):
+    """
+    Returns a list where each element contains text from each line 
+    of given text file.
+    """
+    return [line.rstrip() for line in open(filename,'r').readlines()]
+
+
+def getRandomNums(n1,n2,n):
+	b = np.empty(n,dtype=int)
+
+	for iN in range(0,n,1):
+	    b[iN] = np.random.randint(n1,n2)
+
+	return b 
+
+def num2mon(num,type):
+    """
+    convert month infomation from numerical integer to month name.
+    exp, 1 --> January or Jan
+    type = 1, full name
+    type = 2, shorten namne with three characters		 
+    """		
+   
+    if type == 1:	
+       monString = ['January','Feburary','March','April','May','Jun','July','August','September','October','November','December']	
+    elif type == 2:	
+       monString = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']	
+
+    monNum=[1,2,3,4,5,6,7,8,9,10,11,12]	
+    monName=monString[monNum.index(num)]
+
+    return monName 
+
+def mon2num(mon,type):
+    """
+    """
+    if type == 1:
+       monString = ['January','Feburary','March','April','May','Jun','July','August','September','October','November','December']
+    elif type == 2:
+       monString = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
+    elif type == 3:
+       monString = ['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC']
+
+    count = 0	
+    for iS in monString:
+        count += 1
+        if iS == mon:
+           num = count
+
+    return num
+
+def plcoastline(type):
+    """
+    read in coastline data download from "http://www.ngdc.noaa.gov/mgg_coastline/'
+    input variable: type (type is also part of file name
+    output variable: hp (you can use it to control the line styles of the coastline'
+    """
+    x = []
+    y = []
+    f = open('/home/clee/data/coastline/coastline_'+type+'.dat')
+    a = f.readlines()
+
+    for ll in a:
+        x.append(np.float(ll.rstrip().rsplit()[0]))
+        y.append(np.float(ll.rstrip().rsplit()[1])) 
+
+    hp = plt.plot(x,y,'-',color='gray')
+  
+    return hp
+
+def squeeze(a):
+    "squeeze(a) returns a with any ones from the shape of a removed"
+    a = asarray(a)
+    b = asarray(a.shape)
+    return reshape (a, tuple (compress (not_equal (b, 1), b)))
+
+def get_from_first(key,*dicts):
+    """
+    Returns value associated with key from the first dictionary in dicts which contains that key
+    """
+    for dict in dicts:
+        if key in dict: return dict.get(key)
+    raise_(KeyError, 'utils.get_from_multi(): Key %s not found' % str(key))
+
+def demean(a,axis=0):
+    """
+    Returns a with mean subtracted along specified axis.
+    """
+    a=array(a)
+    assert axis <= len(shape(a)), \
+                  '\n\n ++++ CliMT.utils.demean: axis index out of range'
+
+    if rank(a)==1: return a - average(a)
+    
+    x=[':']*rank(a)
+    x[axis]='NewAxis'
+    s='['+'%s,'*(rank(a)-1)+'%s]'
+    sx = s % tuple(x)
+    exec('a = a - average(a,axis=axis)'+sx)
+    return a
+
+def uv2vtvr(u,v,xlong,xlat,lonc,latc):
+    er = 6371.0 #km
+    londis = 2*np.pi*er*np.cos(xlat/180*np.pi)/360
+    dy = (xlat-latc)*111
+    dx = (xlong-lonc)*londis
+    angle = np.arctan2(dy,dx)
+    vt = v*np.cos(angle)-u*np.sin(angle)
+    vr = u*np.cos(angle)+v*sin(angle)
+    return vt, vr
+def azimuthAverage_range(field,x,y,r1,r2,dr):
+    """
+    Computes an azimuthal average of a field defined on x and y,
+    with a radial resolution of dr (km), out to rmax (km).
+    """
+    from scipy.stats import nanmean
+    r = np.sqrt(x**2+y**2)
+    rad = np.arange(r1,r2,dr)
+    fieldMean = np.array([])
+    for r0 in rad:
+        fieldMean = np.append(fieldMean,nanmean(field[ (r>=r0) & (r<r0+dr) ]))
+    return rad,fieldMean
+def xy2rtheta(field,xlong,xlat,radius,dtheta,ixc,iyc,dx,dy,londis):
+    """
+    convert field from cartesian to cylindrical with given radius, and dtheta
+    xlong,ylong: 
+    ixc, and iyc: grid number for storm center
+    dx, dy: distance in km for x, y grid
+    """
+    er = 6371.0 #km
+    theta = np.pi*np.arange(0,361,dtheta)/180.     
+    fieldCy = np.zeros(theta.shape)
+    iynew = radius*np.sin(theta)/111/dy+iyc
+    ixnew = radius*np.cos(theta)/londis/dx+ixc 
+
+    for itheta in range(0,theta.shape[0],1):
+        x0 = np.max([0,np.floor(ixnew[itheta]).astype(int)])
+        x0 = np.min([field.shape[1]-1,x0])
+        x1 = np.max([0,x0+1])
+        x1 = np.min([field.shape[1]-1,x1])
+        y0 = np.max([0,np.floor(iynew[itheta]).astype(int)])
+        y0 = np.min([field.shape[0]-1,y0])
+        y1 = np.max([0,y0+1])
+        y1 = np.min([field.shape[0]-1,y1])
+        Ia = field[ y0, x0 ]
+        Ib = field[ y1, x0 ]
+        Ic = field[ y0, x1 ]
+        Id = field[ y1, x1 ]
+        wa = (x1-ixnew[itheta])*(y1-iynew[itheta])
+        wb = (x1-ixnew[itheta])*(iynew[itheta]-y0)
+        wc = (ixnew[itheta]-x0)*(y1-iynew[itheta])
+        wd = (ixnew[itheta]-x0)*(iynew[itheta]-y0)
+        fieldCy[itheta] =  wa*Ia + wb*Ib + wc*Ic + wd*Id
+
+    return fieldCy
+

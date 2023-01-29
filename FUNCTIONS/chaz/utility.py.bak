@@ -1,0 +1,187 @@
+#!/usr/bin/env python
+import numpy as np
+from datetime import timedelta,datetime
+from pygplib.util import getTextFile, argminDatetime
+from pygplib.plot_tool import plotMap
+import matplotlib.pyplot as plt
+
+er = 6371.0 #km
+def knaff15(wspd,lat):
+    '''
+    wspd in kt, rmw in n. mile
+    '''
+    rmw = (218.3784-1.2014*wspd+(wspd/10.9844)**2\
+        -(wspd/35.3052)**3-145.5090*np.cos(lat/180*np.pi))
+    rmw = rmw * 1.852 #(nautical mile to km) 
+    return rmw
+def find_poi_Tracks(lon,lat,wspd,lon_poi,lat_poi,radius):
+	"""
+	finding storm numbers that is close to lon_poi, and lat_poi
+	with in 'radius'(km)
+	"""
+        londis = 2*np.pi*er*np.cos(lat/180*np.pi)/360
+        dx = londis*(lon-lon_poi)
+        dy = 110*(lat-lat_poi)
+        distance = np.sqrt(dx*dx+dy*dy)
+        distance[wspd!=wspd] = radius+10000
+        distance[distance!=distance] = radius+10000
+        i_poi = np.argwhere(np.nanmin(distance,axis=0)<=radius)[:,0]
+        return i_poi
+
+def find_timing_Tracks(lon,lat,wspd,lon_poi,lat_poi,radius):
+        """
+        finding storm numbers that is close to lon_poi, and lat_poi
+        with in 'radius'(km)
+        """
+        londis = 2*np.pi*er*np.cos(lat/180*np.pi)/360
+        dx = londis*(lon-lon_poi)
+        dy = 110*(lat-lat_poi)
+        distance = np.sqrt(dx*dx+dy*dy)
+        distance[wspd!=wspd] = radius+10000
+        distance[distance!=distance] = radius+10000
+        i_poi = np.argwhere(distance<=radius)[:,0]
+        return i_poi
+def rtheta2lonlat(rr,theta,lonc,latc,ori,xlong,xlat):
+    """
+    converting ori from cylindrical corrdinate to longitude and latitude.
+    input: initial center lon, lat, r, angles[with 0 to E, 90 to N]
+           and origional field, output-xlong,xlat
+    output: gridded new data
+    let's try if we can use dask arrays for it
+    """
+    londis = 2*np.pi*er*np.cos(latc/180.*np.pi)/360
+    dlon = rr*np.cos(theta/180.*np.pi)/111+lonc
+    dlat = rr*np.sin(theta/180.*np.pi)/londis+latc
+    new = griddata((dlon.ravel(),dlat.ravel()),ori.ravel(),(xlong,xlat),method = 'cubic')
+    return new
+
+def translationspeedFactor(r):
+    """
+    alpha = [0.4,0.7], r = [0,1], alpha = ar+b, a = 0.3, b = 0.4
+    alpha =[0.7,0.5], r=[1,9] fix with exponetnal: exp(-0.314-0.042*np.array(r))
+    """
+    alpha = r*0.0
+    alpha = np.exp(-0.314-0.042*r)
+    alpha[r<1] = 0.3*r[r<1]+0.4
+    #alpha[r>8] = 0.5
+    return alpha
+
+def getStormTranslation(lon,lat,time):
+
+        timeInt=[]
+        lonInt=[]
+        latInt=[]
+
+        for iN in range(time.shape[0]-1):
+               timeInt.append(time[iN])
+               lonInt.append(lon[iN])
+               latInt.append(lat[iN])
+               delt = (time[iN+1]-time[iN]).seconds/60/60
+               #print delt, lon[iN],lon[iN+1]
+               if ((lon[iN+1] ==lon[iN+1]) and (delt >0)) :
+                   inv = 1./np.float(delt)
+                   for iM in range(1,delt,1):
+                      timeInt.append(time[iN]+timedelta(hours=iM))
+                      lonInt.append((1.-iM*inv)*lon[iN]+iM*inv*lon[iN+1])
+                      latInt.append((1.-iM*inv)*lat[iN]+iM*inv*lat[iN+1])
+               else:
+                   timeInt.append(datetime(1800,1,1,0,0))
+                   lonInt.append(np.float('nan'))
+                   latInt.append(np.float('nan'))
+
+
+        speed = np.zeros(lon.shape[0],dtype=float)+float('nan')
+        sdir = np.zeros(lon.shape[0],dtype=float)+float('nan')
+        count = 0
+        for it in time:
+            nup = argminDatetime(it+timedelta(hours=3),timeInt)
+            ndn = argminDatetime(it-timedelta(hours=3),timeInt)
+            londis = 2*np.pi*er*np.cos(latInt[nup]/180*np.pi)/360
+            dlon = lonInt[nup]-lonInt[ndn]
+            dlat = latInt[nup]-latInt[ndn]
+            dx = londis*(lonInt[nup]-lonInt[ndn])
+            dy = 110*(latInt[nup]-latInt[ndn])
+            distance = np.sqrt(dx*dx+dy*dy) #km
+            sdir[count]=np.arctan2(dlat,dlon)
+            speed[count]=distance*1000./(nup-ndn)/60/60 #m/s
+            count+= 1
+
+        return sdir,speed
+def getbasinMap():
+    xbin, ybin = np.arange(0,365,5),np.arange(-90,95,5)
+    xcenter = 0.5*(xbin[0:-1]+xbin[1:])
+    ycenter = 0.5*(ybin[0:-1]+ybin[1:])
+    basinMap = np.zeros([xcenter.shape[0],ycenter.shape[0]])
+    lonc,latc = np.meshgrid(xcenter,ycenter)
+    n_sin = np.argwhere((lonc<90) & (latc<0)&(latc>=-45))
+    n_aus = np.argwhere((lonc>=90)&(lonc<160)&(latc<0)&(latc>=-45))
+    n_spc = np.argwhere((lonc>=160)&(lonc<240)&(latc<0)&(latc>=-45))
+    n_ni = np.argwhere((lonc<100) & (latc>=0)&(latc<=45))
+    n_wnp = np.argwhere((lonc>=100)&(lonc<180)&(latc>=0)&(latc<=45))
+    n_enp = np.argwhere(((lonc>=180)&(lonc<235)&(latc>=0)&(latc<=45)))
+    n_atl = np.argwhere((lonc>=235)&(latc>=0)&(latc<=45))
+
+    basinMap[n_atl[:,1],n_atl[:,0]]=1
+    basinMap[n_enp[:,1],n_enp[:,0]]=2
+    basinMap[n_wnp[:,1],n_wnp[:,0]]=3
+    basinMap[n_ni[:,1],n_ni[:,0]]=4
+    basinMap[n_sin[:,1],n_sin[:,0]]=5
+    basinMap[n_aus[:,1],n_aus[:,0]]=6
+    basinMap[n_spc[:,1],n_spc[:,0]]=7
+    a= np.arange(xcenter.shape[0]*ycenter.shape[0]).reshape(xcenter.shape[0],ycenter.shape[0])
+
+
+    basinMap[a==1716] = 2
+    basinMap[a==1715] = 2
+    basinMap[a==1714] = 2
+    basinMap[a==1713] = 2
+    basinMap[a==1712] = 2
+    basinMap[a==1711] = 2
+    basinMap[a==1710] = 2
+    basinMap[a==1751] = 2
+    basinMap[a==1750] = 2
+    basinMap[a==1749] = 2
+    basinMap[a==1748] = 2
+    basinMap[a==1747] = 2
+    basinMap[a==1746] = 2
+    basinMap[a==1787] = 2
+    basinMap[a==1786] = 2
+    basinMap[a==1785] = 2
+    basinMap[a==1784] = 2
+    basinMap[a==1783] = 2
+    basinMap[a==1782] = 2
+    basinMap[a==1822] = 2
+    basinMap[a==1821] = 2
+    basinMap[a==1820] = 2
+    basinMap[a==1819] = 2
+    basinMap[a==1818] = 2
+    basinMap[a==1854] = 2
+    basinMap[a==1855] = 2
+    basinMap[a==1856] = 2
+    basinMap[a==1857] = 2
+    basinMap[a==1890] = 2
+    basinMap[a==1891] = 2
+    basinMap[a==1892] = 2
+    basinMap[a==1893] = 2
+    basinMap[a==1926] = 2
+    basinMap[a==1927] = 2
+    basinMap[a==1928] = 2
+    basinMap[a==1962] = 2
+    basinMap[a==1963] = 2
+    basinMap[a==1964] = 2
+    basinMap[a==1998] = 2
+    basinMap[a==1999] = 2
+
+    ax,fig,m = plotMap(0,360,-70,70,(6,3),10,60,30)
+    plt.pcolormesh(xbin,ybin,basinMap.T,alpha=0.5,cmap=plt.cm.Blues)
+    plt.clim([0,7])
+    plt.colorbar(extend='neither')
+    plt.savefig('rawgridmap.png',dpi=300)
+    return xbin,ybin,basinMap
+def defineBasin(lon0_obs,lat0_obs,basinlon,basinlat,basinMap):
+    lat0_obs[lat0_obs>=90] = 89.9
+    x = np.floor(lon0_obs/np.diff(basinlon)[0])
+    y = np.floor((lat0_obs-basinlat[0])/np.diff(basinlat)[0])
+    basin = basinMap[np.int_(x),np.int_(y)]
+    return(basin)
+
