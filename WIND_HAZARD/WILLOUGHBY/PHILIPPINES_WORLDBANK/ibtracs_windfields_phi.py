@@ -23,7 +23,7 @@ import pickle
 from netCDF4 import Dataset
 import sys
 import matplotlib.pyplot as plt
-from chaz import CLE15, utility
+from chaz import utility
 from pygplib3 import readbst
 import xarray as xr
 import pandas as pd
@@ -39,11 +39,15 @@ import multiprocessing
 from joblib import Parallel, delayed
 import time
 from os import path
+from tcrisk.hazard import windfield, landfall_in_box, timepoints_around_landfall
 
 # For timing the script
 start_time = time.time()
 
-# In[9]:
+
+# ## Step 1a: Define regional bounding box for Philippines
+
+# In[5]:
 
 
 # Bounding box for the Philippines
@@ -53,11 +57,90 @@ lonmax = 126.537423944
 latmax = 18.5052273625
 
 
+# ## Step 1b: Load data for TC tracks.
+
+# In[6]:
+
+
+# Load data from file
+filename = '/data2/clee/bttracks/IBTrACS.ALL.v04r00.nc'
+ibtracs = readbst.read_ibtracs_v4(filename,'wnp',2) # gap = 2 to convert 3-hourly to 6-hourly
+
+# Extract variables
+lon = ibtracs.lon[:]
+lat = ibtracs.lat[:]
+wspd = ibtracs.wspd[:] # wind speed in knots
+days = ibtracs.days[:] # date in days
+dist2land = ibtracs.dist2land[:]
+year = ibtracs.year[:]
+
+
+# ## Step 1c: Interpolate data from 6-hour to 15-min timesteps.
+
+# In[11]:
+
+
+# Interpolate to 15-min timesteps
+nscale = 24 # convert from 6-hr to 15-min timesteps (factor of 6*4=24)
+lon_int = ld.rescale_matrix(lon,nscale,0) # int for time interpolated 
+lat_int = ld.rescale_matrix(lat,nscale,0)
+wspd_int = ld.rescale_matrix(wspd,nscale,0)
+days = np.where(days==-9999000., np.nan, days)
+days_int = ld.rescale_matrix(days,nscale,0)
+
+
+# ## Step 1d: Calculate which storms make landfall in the Philippines, and subset only those storms.
+# Note: takes a couple minutes.
+
+# In[14]:
+
+
+# Calculate which storms and when make landfall in Philippines
+llon_midpoint = 180
+nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon_int,lat_int,wspd_int,llon_midpoint)
+
+
+# In[15]:
+
+
+# Select data only for storms that make landfall in the Philippines
+# (for normal timesteps and interpolated timestep data)
+lon_phi = lon[:,nSlandfall_phi]
+lat_phi = lat[:,nSlandfall_phi]
+wspd_phi = wspd[:,nSlandfall_phi]
+days_phi = days[:,nSlandfall_phi]
+year_phi = year[nSlandfall_phi]
+
+lon_int_phi = lon_int[:,nSlandfall_phi]
+lat_int_phi = lat_int[:,nSlandfall_phi]
+wspd_int_phi = wspd_int[:,nSlandfall_phi]
+days_int_phi = days_int[:,nSlandfall_phi]
+
+
+# ## Step 1e: Save out data for storms that make landfall in the Philippines.
+
+# In[73]:
+
+
+# Save out data of Philippines landfalling TCs
+ds = xr.Dataset(
+    {"lon": (("iT","nS"), lon_phi),
+     "lat": (("iT","nS"), lat_phi),
+     "wspd": (("iT","nS"), wspd_phi), # maximum sustained wind speed in m/s
+     "days": (("iT","nS"), days_phi),
+     "year": (("nS"), year_phi)},
+        coords={
+        "iT": np.arange(np.shape(lon_phi)[0]),
+        "nS": np.arange(np.shape(lon_phi)[1]),
+     },
+ )
+
+ds.to_netcdf("/home/jbaldwin/WorldBank/WIND_HAZARD/IBTRACS_LANDFALL_TRACKS/ibtracsv04r00_landfall_philippines.nc", mode = 'w')
+
+
 # # Start from here if subset data already:
 
 # In[27]:
-
-
 # Load subset data of landfalling storms over Philippines
 dat = xr.open_dataset('/home/jbaldwin/WorldBank/WIND_HAZARD/IBTRACS_LANDFALL_TRACKS/ibtracsv04r00_landfall_philippines.nc')
 lon = np.array(dat.lon)
@@ -66,15 +149,7 @@ wspd = np.array(dat.wspd)/1.944 #convert from kts to m/s
 days = np.array(dat.days)
 year = np.array(dat.year)
 
-# Load land-sea mask
-llon, llat, ldmask = ld.get_landmask('/home/clee/CHAZ/landmask.nc')
-land = np.max(ldmask)
-ocean = np.min(ldmask)
-
-
 # In[28]:
-
-
 # Calculate track angle and track translation speed 
 er = 6371.0  # earth's radius; km
 lon_diff = lon[1:, :]-lon[0:-1, :]
@@ -89,8 +164,6 @@ trDir = np.arctan2(lat_diff, lon_diff) # track angle
 
 
 # In[29]:
-
-
 # Interpolate to 15-min timesteps
 nscale = 24 # convert from 6-hr to 15-min timesteps (factor of 6*4=24)
 lon = ld.rescale_matrix(lon,nscale,0) # int for time interpolated 
@@ -101,83 +174,19 @@ tr = ld.rescale_matrix(tr,nscale,0)
 trDir = ld.rescale_matrix(trDir,nscale,0)
 
 # In[30]:
-
-
-#%%time
-# Retrieve times of landfall for the WNP
-iSlandfall = ld.get_landfall_stormID(lon,lat,wspd,llon,llat,ldmask,land,np.min(ldmask))
-landfall_times = ld.get_landfall_storm_time(iSlandfall,lon,lat,wspd,llon,llat,ldmask,land,ocean,24)
-nSlandfall_first = landfall_times[0] # index of storms that make first landfall (why different than nSlandfall?)
-iTlandfall_first = landfall_times[1] # time of making first landfall
-nSlandfall_all = landfall_times[2] # index of storms that make any landfall (ie storm would repeat if makes multiple landfalls)
-iTlandfall_all = landfall_times[3] # time of making that landfall
-
-
-# In[31]:
-
-
-# Find times that storms make landfall in the Philippines
-nSlandfall_all_phi = []
-iTlandfall_all_phi = []
-for j in range(np.shape(nSlandfall_all)[0]):
-    nS = nSlandfall_all[j]
-    iT = iTlandfall_all[j]
-    lon_landfall = lon[iT,nS]
-    lat_landfall = lat[iT,nS]
-    if lonmin <= lon_landfall <= lonmax and latmin <= lat_landfall <= latmax:
-        nSlandfall_all_phi.append(nSlandfall_all[j])
-        iTlandfall_all_phi.append(iTlandfall_all[j])
-
-# Remove duplicate storms (storms that made landfall in Philippines twice)
-nSlandfall_phi = list(dict.fromkeys(nSlandfall_all_phi))
-
+# Determine which storms make landfall in a rectangular region around the PHilippines and when those landfalls occur.
+llon_midpoint = 180 # b/c in Western North Pacific not North Atlantic
+nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon,lat,wspd,llon_midpoint)
 
 # In[32]:
-
-
-# Select time of first landfall for each of the Philippines storms
-iTlandfall_first_phi = []
-for i in range(np.shape(lon)[1]):
-    j = np.where(np.array(nSlandfall_all_phi)==i)[0][0]
-    iTlandfall_first_phi.append(iTlandfall_all_phi[j])
-
-# In[35]:
-
-
-# For each storm select time points of landfall, including possibility for second landfall and potential overlap
-# iTlandfall_forwindfield_phi
-
+# For each storm select time points 1 day before and after landfall, including possibility for second landfall and potential overlap. Used to determine timepoints to calculate windfields for.
 days_before_landfall = 1
 days_post_landfall = 1
-timesteps_before_landfall = days_before_landfall*4*24 # 4 15-min increments per hour, 24 hours per day
-timesteps_post_landfall = days_post_landfall*4*24 # 4 15-min increments per hour, 24 hours per day
+timeres = 4*24 # timesteps per day
+chaz = 0
+iTlandfall_forwindfield_phi = timepoints_around_landfall( days_before_landfall, days_post_landfall, nSlandfall_all_phi, iTlandfall_all_phi, wspd, lon, tr, timeres, chaz)
 
-iTlandfall_forwindfield_phi = []
-nSlandfall_forwindfield_phi = []
-for i in range(np.shape(lon)[1]):
-    nSlandfall_forwindfield_phi.append(i)
-    indices_landfalls = np.where(np.array(nSlandfall_all_phi)==i)[0] # different landfalls per storm
-    nlandfalls = np.shape(indices_landfalls)[0]
-    if nlandfalls == 1:
-        iTlandfall = iTlandfall_all_phi[indices_landfalls[0]]
-        iT = np.arange(iTlandfall-timesteps_before_landfall,iTlandfall+timesteps_post_landfall+1,1)
-        iTlandfall_forwindfield_phi.append(list(iT))
-    if nlandfalls > 1:
-        iTs = np.array([],dtype=int)
-        for ii in indices_landfalls:
-            iTlandfall = iTlandfall_all_phi[ii]
-            iT = np.arange(iTlandfall-timesteps_before_landfall,iTlandfall+timesteps_post_landfall+1,1)
-            iTs = np.concatenate((iTs,iT),axis=0)
-        iTs = np.unique(iTs) # remove wind field points that repeat
-        iTlandfall_forwindfield_phi.append(list(iTs))
-    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x > 0, iTlandfall_forwindfield_phi[i])) # remove negative numbers from list https://www.geeksforgeeks.org/python-remove-negative-elements-in-list/ 
-    iTlandfall_forwindfield_phi[i] = list(filter(lambda x : x <= np.max(np.where(~np.isnan(tr[:,i]))), iTlandfall_forwindfield_phi[i])) # remove numbers above max time step for each storm based on tr which has fewer points than wspd,lat,lon
-    iTlandfall_forwindfield_phi[i] = [iT for iT in iTlandfall_forwindfield_phi[i] if iT not in np.where(np.isnan(wspd[:,i]))[0]] # remove nan values (primarily ones after end of storm, but wspd often has nan values at beginning, or sometimes in the middle)
-
-
-# In[50]:
-
-
+# # In[50]:
 # Aggregate only storm points (lat,lon,wspd) where might be making landfall
 wspd_landfall = []
 lon_landfall = []
@@ -197,83 +206,6 @@ for nS in range(np.shape(lon)[1]):
     trDir_landfall.append(trDir[iT,nS])
 
 
-# In[51]:
-
-
-# Distance function
-# Center of storm = lat, lon
-# Calculate distance between center point and each grid point
-# adopted from: https://kite.com/python/answers/how-to-find-the-distance-between-two-lat-long-coordinates-in-python
-# radius of earth in km so outputs distance in km
-
-def distancefrompoint(lon, lat, X1, Y1):
-    R = 6371.0 #radius of the Earth km
-
-    lat1 = math.radians(lat)
-    lon1 = math.radians(lon)
-    lat2 = np.radians(Y1)
-    lon2 = np.radians(X1)
-
-    # change in coordinates
-    dlon = lon2 - lon1
-    dlat = lat2 - lat1
-
-    # Haversine formula
-    a = np.sin(dlat / 2)**2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2)**2
-    c = 2 * np.arctan2(np.sqrt(a), np.sqrt(1 - a))
-    distance = R * c
-    return distance
-
-# Set up function to run wind fields in parallel
-# 32 processors total available
-
-# Calculate wind field with asymmetry, subtracting max rFactor*vt from wspdi before calculating profile:
-def windfield(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
-    loni = lon_nS[i]
-    lati = lat_nS[i]
-    wspdi = wspd_nS[i]
-    rmaxi = rmax_nS[i]
-    tri = tr_nS[i]
-    trDiri = trDir_nS[i]
-    
-    # Calculate tangential wind
-    angle = np.arctan2((Y1-lati),(X1-loni)) - trDiri # define angle relative to track direction 
-    vt = -tri*np.cos(np.pi/2 - angle) # calculate tangential wind; remove minus if southern hemisphere
-    
-    # Calculate distance from center of storm
-    distance = distancefrompoint(loni, lati, X1, Y1) # distance in km
-    
-    # Round distance values to nearest whole number
-    distance = distance.astype(int)
-    
-    # Calculate rFactor to modulate track correction
-    rFactor = utility.translationspeedFactor(old_div(distance,rmaxi))
-    asymcorrec = rFactor*vt
-    max_asymcorrec = 0.7*tri # 0.7 from utility.translationspeedFactor structure. tri = max vt. Alternatively could do np.max(rFactor)*np.max(vt), but this should be faster and more exact.
-    
-    # Calculate Willoughby Profile
-    radius_max = 500
-    radius_precision = 1
-    profile = W_profile(lati, rmaxi, wspdi-max_asymcorrec, radius_max, radius_precision)
-    radius = np.arange(0,radius_max + radius_precision, radius_precision)
-    
-    # Create dict look-up table from Willoughby Profile
-    wspdlookup = dict(zip(radius, profile))
-
-    # Remap radii to windspeed
-    wspdmap = np.zeros(np.shape(distance))
-    for r in radius:
-        wspdmap[np.where(distance == r)] = wspdlookup[r]
-    
-    #Add track direction correction
-    wspdmap = wspdmap + asymcorrec
-    
-    # Set to 0 outside radius_max
-    wspdmap[np.where(distance > radius_max)] = 0 # added 10-27-20
-    
-    return wspdmap
-
-
 # In[52]:
 
 
@@ -288,7 +220,7 @@ X1, Y1 = np.meshgrid(X,Y)
 
 #CURRENT
 missed_tries = 0
-for nS in range(len(wspd_landfall)):
+for nS in range(10):#range(len(wspd_landfall)):
     print(nS)
     
     # Select data for 1 storm
@@ -307,7 +239,7 @@ for nS in range(len(wspd_landfall)):
     # Calculate wind fields in parallel
     stormpoints = np.shape(wspd_nS)[0]
     try:
-        wspdmaps = Parallel(n_jobs=16, prefer="threads")(delayed(windfield)(lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i) for i in range(stormpoints))    
+        wspdmaps = Parallel(n_jobs=16, prefer="threads")(delayed(windfield)(X1,Y1,lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i) for i in range(stormpoints))    
         wspdmaps = np.abs(wspdmaps) # take absolute value for places asymmetry correction overpowers wind speed
         wspdmaps = np.expand_dims(wspdmaps,axis = 0)  
     
@@ -327,7 +259,7 @@ for nS in range(len(wspd_landfall)):
          )
     
         #Write to netcdf
-        direc = '/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI_SWATHS/'
+        direc = '/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI/SWATHS/'
         filename = 'wspd_phi_swaths_maxasymcorrec_ibtracsv04r00_3-8-21.nc'
         #ds.to_netcdf(direc+filename,mode='a',unlimited_dims = ["nS"])
         if path.exists(direc+filename): # concatenate if file exists
