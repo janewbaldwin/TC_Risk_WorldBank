@@ -12,6 +12,9 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import time
 
+# Root directory: change to where data downloaded to
+root_dir = '/data2/jbaldwin/WCAS2023'
+
 # For timing the script
 start_time = time.time()
 
@@ -39,7 +42,7 @@ def vulnerability(V,Vthresh,Vhalf): # calculate fractional property value lost o
 
 # # Open up swaths:
 
-ds_swaths = xr.open_dataset('/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI/SWATHS/wspd_phi_swaths_maxasymcorrec_ibtracsv04r00_3-8-21.nc')
+ds_swaths = xr.open_dataset(root_dir+'/HAZARD/WIND_SWATHS/IBTrACS/wspd_phi_swaths_maxasymcorrec_ibtracsv04r00_3-8-21.nc')
 swath = ds_swaths.swath
 
 # Convert modified Julian days to date-time objects
@@ -62,7 +65,7 @@ tc_start_date = np.min(dt,axis=1)
 tc_end_date = np.max(dt,axis=1)
 
 # Exposed Value Data, subset over Philippines
-ds_exp = xr.open_dataset('/data2/jbaldwin/EXPOSED_VALUE/LITPOP/litpop_v1-2_phl.nc').sel(lon=slice(lonmin,lonmax),lat=slice(latmin,latmax))
+ds_exp = xr.open_dataset(root_dir+'/EXPOSED_VALUE/LITPOP/litpop_v1-2_phl.nc').sel(lon=slice(lonmin,lonmax),lat=slice(latmin,latmax))
 exposed_value = ds_exp.value
 
 # Determine Regridder for Hazard --> Exposed Value
@@ -97,7 +100,7 @@ for vt in Vthresh:
                  },
                  )
 
-        ds_asset_losses.to_netcdf('/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI/ASSET_LOSSES/VCURVE_SENSITIVITY/Vhalf-'+str(vh)+'_Vthresh-'+str(vt)+'.nc',mode='w')
+        ds_asset_losses.to_netcdf(root_dir+'/ASSET_LOSSES/IBTrACS/VCURVE_SENSITIVITY/Vhalf-'+str(vh)+'_Vthresh-'+str(vt)+'.nc',mode='w')
 
         
 # Report on timing        
