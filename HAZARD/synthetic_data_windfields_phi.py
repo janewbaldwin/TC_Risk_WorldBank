@@ -44,6 +44,9 @@ from tcrisk.hazard import windfield, landfall_in_box, timepoints_around_landfall
 # For timing the script
 start_time = time.time()
 
+# Root directory: change to where data downloaded to
+root_dir = '/data2/jbaldwin/WCAS2023'
+
 # In[159]:
 
 
@@ -62,89 +65,90 @@ fileN = sys.argv[1] # string eg 006 (converted to string by sys)
 
 
 # # Initial subsetting of landfalling TCs over Philippines:
+# Left here for reference, but commented out since data on DesignSafe is already subset.
 
 # In[161]:
 
 
-# Load data from file
-filename = '/data2/clee/ERAInterim/ERAInterim_wpc_'+fileN+'.nc'
-ds0 = xr.open_dataset(filename)
-lon = ds0.longitude[:]
-lat = ds0.latitude[:]
-wspd = ds0.Mwspd[:] # wind speed in knots
-days = ds0.time[:] # date in days, 6 hour time steps
-days = np.where(days==-54786., np.nan, days)
-year = ds0.year[:]
+# # Load data from file
+# filename = '/data2/clee/ERAInterim/ERAInterim_wpc_'+fileN+'.nc'
+# ds0 = xr.open_dataset(filename)
+# lon = ds0.longitude[:]
+# lat = ds0.latitude[:]
+# wspd = ds0.Mwspd[:] # wind speed in knots
+# days = ds0.time[:] # date in days, 6 hour time steps
+# days = np.where(days==-54786., np.nan, days)
+# year = ds0.year[:]
 
-# Interpolate to 15-min timesteps
-nscale = 24 # convert from 6-hr to 15-min timesteps (factor of 6*4=24)
-lon_int = ld.rescale_matrix(lon,nscale,0) # int for time interpolated 
-lat_int = ld.rescale_matrix(lat,nscale,0)
-wspd_int = ld.rescale_matrix(wspd,nscale,1)
-days_int = ld.rescale_matrix(days,nscale,0)
-
-
-# In[163]:
-# Calculate which storms and when make landfall in Philippines
-wspd_int_forlandfall = np.nanmax(wspd_int, axis = 0)
-llon_midpoint = 180
-nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon_int,lat_int,wspd_int_forlandfall,llon_midpoint)
-
-# Select data only for storms that make landfall in the Philippines
-# (for normal timesteps and interpolated timestep data)
-lon_phi = lon[:,nSlandfall_phi]
-lat_phi = lat[:,nSlandfall_phi]
-wspd_phi = wspd[:,:,nSlandfall_phi]
-days_phi = days[:,nSlandfall_phi]
-year_phi = year[nSlandfall_phi]
-
-lon_int_phi = lon_int[:,nSlandfall_phi]
-lat_int_phi = lat_int[:,nSlandfall_phi]
-wspd_int_phi = wspd_int[:,:,nSlandfall_phi]
-days_int_phi = days_int[:,nSlandfall_phi]
+# # Interpolate to 15-min timesteps
+# nscale = 24 # convert from 6-hr to 15-min timesteps (factor of 6*4=24)
+# lon_int = ld.rescale_matrix(lon,nscale,0) # int for time interpolated 
+# lat_int = ld.rescale_matrix(lat,nscale,0)
+# wspd_int = ld.rescale_matrix(wspd,nscale,1)
+# days_int = ld.rescale_matrix(days,nscale,0)
 
 
-# In[168]:
+# # In[163]:
+# # Calculate which storms and when make landfall in Philippines
+# wspd_int_forlandfall = np.nanmax(wspd_int, axis = 0)
+# llon_midpoint = 180
+# nSlandfall_all_phi, iTlandfall_all_phi, nSlandfall_phi = landfall_in_box(lonmin,lonmax,latmin,latmax,lon_int,lat_int,wspd_int_forlandfall,llon_midpoint)
+
+# # Select data only for storms that make landfall in the Philippines
+# # (for normal timesteps and interpolated timestep data)
+# lon_phi = lon[:,nSlandfall_phi]
+# lat_phi = lat[:,nSlandfall_phi]
+# wspd_phi = wspd[:,:,nSlandfall_phi]
+# days_phi = days[:,nSlandfall_phi]
+# year_phi = year[nSlandfall_phi]
+
+# lon_int_phi = lon_int[:,nSlandfall_phi]
+# lat_int_phi = lat_int[:,nSlandfall_phi]
+# wspd_int_phi = wspd_int[:,:,nSlandfall_phi]
+# days_int_phi = days_int[:,nSlandfall_phi]
 
 
-# Save out data of Philippines landfalling TCs
-ensN = wspd.ensembleNum.values # count of ensemble numbers
-
-ds = xr.Dataset(
-    {"lon": (("iT","nS"), lon_phi),
-     "lat": (("iT","nS"), lat_phi),
-     "wspd": (("ensembleNum","iT","nS"), wspd_phi), # maximum sustained wind speed in m/s
-     "days": (("iT","nS"), days_phi),
-     "year": (("nS"), year_phi)},
-        coords={
-        "ensembleNum": ensN,
-        "iT": np.arange(np.shape(lon_phi)[0]),
-        "nS": np.arange(np.shape(lon_phi)[1]),
-     },
- )
-
-ds_int = xr.Dataset(
-    {"lon": (("iT","nS"), lon_int_phi),
-     "lat": (("iT","nS"), lat_int_phi),
-     "wspd": (("ensembleNum","iT","nS"), wspd_int_phi), # maximum sustained wind speed in m/s
-     "days": (("iT","nS"), days_int_phi),
-     "year": (("nS"), year_phi)},
-        coords={
-        "ensembleNum": ensN,
-        "iT": np.arange(np.shape(lon_int_phi)[0]),
-        "nS": np.arange(np.shape(lon_int_phi)[1]),
-     },
- )
-
-ds.to_netcdf('/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_LANDFALL_TRACKS/ERAInterim_wpc_'+fileN+'_landfall_philippines.nc', mode = 'w')
-ds_int.to_netcdf('/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_LANDFALL_TRACKS/ERAInterim_wpc_'+fileN+'_landfall_philippines_15min.nc', mode = 'w')
+# # In[168]:
 
 
-# Start from here if subset data already:
+# # Save out data of Philippines landfalling TCs
+# ensN = wspd.ensembleNum.values # count of ensemble numbers
+
+# ds = xr.Dataset(
+#     {"lon": (("iT","nS"), lon_phi),
+#      "lat": (("iT","nS"), lat_phi),
+#      "wspd": (("ensembleNum","iT","nS"), wspd_phi), # maximum sustained wind speed in m/s
+#      "days": (("iT","nS"), days_phi),
+#      "year": (("nS"), year_phi)},
+#         coords={
+#         "ensembleNum": ensN,
+#         "iT": np.arange(np.shape(lon_phi)[0]),
+#         "nS": np.arange(np.shape(lon_phi)[1]),
+#      },
+#  )
+
+# ds_int = xr.Dataset(
+#     {"lon": (("iT","nS"), lon_int_phi),
+#      "lat": (("iT","nS"), lat_int_phi),
+#      "wspd": (("ensembleNum","iT","nS"), wspd_int_phi), # maximum sustained wind speed in m/s
+#      "days": (("iT","nS"), days_int_phi),
+#      "year": (("nS"), year_phi)},
+#         coords={
+#         "ensembleNum": ensN,
+#         "iT": np.arange(np.shape(lon_int_phi)[0]),
+#         "nS": np.arange(np.shape(lon_int_phi)[1]),
+#      },
+#  )
+
+# ds.to_netcdf('/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_LANDFALL_TRACKS/ERAInterim_wpc_'+fileN+'_landfall_philippines.nc', mode = 'w')
+# ds_int.to_netcdf('/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_LANDFALL_TRACKS/ERAInterim_wpc_'+fileN+'_landfall_philippines_15min.nc', mode = 'w')
+
+
+# Start from here if subset data already: (eg this is where to start from if downloaded data from DesignSafe, which is already subset for Philippines landfalling!!)
 
 #In[169]:
 # Load subset data of landfalling storms over Philippines
-dat = xr.open_dataset('/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_LANDFALL_TRACKS/ERAInterim_wpc_'+fileN+'_landfall_philippines.nc')
+dat = xr.open_dataset(root_dir+'/HAZARD/TC_TRACKS/CHAZ/ERAInterim_wpc_'+fileN+'_landfall_philippines.nc')
 lon = np.array(dat.lon)
 lat = np.array(dat.lat)
 wspd = np.array(dat.wspd)/1.944 #convert from kts to m/s
@@ -226,7 +230,7 @@ X1, Y1 = np.meshgrid(X,Y)
 #%%time
 
 # Make sure to delete ens_swaths.nc and wspd_phi_swaths+fileN+.nc before running, otherwise won't pass through properly
-direc = '/data2/jbaldwin/WINDFIELDS/CHAZ/ERAInterim_WPC/PHI_SWATHS/'
+direc = root_dir+'/HAZARD/WIND_SWATHS/CHAZ/'
 print('Starting to run out'+filename+', putting results in'+direc+'.')
 ensembleNum = dat.ensembleNum.values
 missed_tries = 0
