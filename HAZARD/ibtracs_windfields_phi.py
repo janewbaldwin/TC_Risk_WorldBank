@@ -45,6 +45,9 @@ from tcrisk.hazard import windfield, landfall_in_box, timepoints_around_landfall
 start_time = time.time()
 
 
+# Root directory: change to where data downloaded to
+root_dir = '/data2/jbaldwin/WCAS2023'
+
 # ## Step 1a: Define regional bounding box for Philippines
 
 # In[5]:
@@ -63,7 +66,7 @@ latmax = 18.5052273625
 
 
 # Load data from file
-filename = '/data2/clee/bttracks/IBTrACS.ALL.v04r00.nc'
+filename = root_dir+'/HAZARD/TC_TRACKS/IBTrACS/IBTrACS.ALL.v04r00.nc'
 ibtracs = readbst.read_ibtracs_v4(filename,'wnp',2) # gap = 2 to convert 3-hourly to 6-hourly
 
 # Extract variables
@@ -135,14 +138,14 @@ ds = xr.Dataset(
      },
  )
 
-ds.to_netcdf("/home/jbaldwin/WorldBank/WIND_HAZARD/IBTRACS_LANDFALL_TRACKS/ibtracsv04r00_landfall_philippines.nc", mode = 'w')
+ds.to_netcdf(root_dir+"/HAZARD/TC_TRACKS/IBTrACS/ibtracsv04r00_landfall_philippines.nc", mode = 'w')
 
 
 # # Start from here if subset data already:
 
 # In[27]:
 # Load subset data of landfalling storms over Philippines
-dat = xr.open_dataset('/home/jbaldwin/WorldBank/WIND_HAZARD/IBTRACS_LANDFALL_TRACKS/ibtracsv04r00_landfall_philippines.nc')
+dat = xr.open_dataset(root_dir+'/HAZARD/TC_TRACKS/IBTrACS/ibtracsv04r00_landfall_philippines.nc')
 lon = np.array(dat.lon)
 lat = np.array(dat.lat)
 wspd = np.array(dat.wspd)/1.944 #convert from kts to m/s
@@ -259,7 +262,7 @@ for nS in range(10):#range(len(wspd_landfall)):
          )
     
         #Write to netcdf
-        direc = '/data2/jbaldwin/WINDFIELDS/IBTRACS/PHI/SWATHS/'
+        direc = root_dir+'/HAZARD/WIND_SWATHS/IBTrACS/'
         filename = 'wspd_phi_swaths_maxasymcorrec_ibtracsv04r00_3-8-21.nc'
         #ds.to_netcdf(direc+filename,mode='a',unlimited_dims = ["nS"])
         if path.exists(direc+filename): # concatenate if file exists
