@@ -13,19 +13,20 @@ To reproduce the paper results:
 
 1) Download/clone the data and code for this project onto your personal system.
 
-2) Install the relevant Python environments included in the worldbank.yml and geopandas.yml files. Using Anaconda this can be done as follows:
+2) This project requires two environments: worldbank (used for almost all of this project) and geopandas (used only for the code in /REGION_MASKS). These environments can be installed as follows using [Anaconda](https://www.anaconda.com/products/distribution):
 ```
 conda env create -f worldbank.yml
 conda env create -f geopandas.yml
 ```
-The worldbank environment is used for almost all of this project. The only exception is the notebooks in /REGION_MASKS which should be run in the geopandas environment.
 
-3) Change root_dir at the beginning of each script to the path to where you downloaded the project data. Initially this is set as: 
+3) Activate the relevant environment by running `conda activate worldbank` or `conda activate geopandas`.
+
+4) Change root_dir at the beginning of each script to the path to where you downloaded the project data. Initially this is set as: 
 ```
 root_dir = '/data2/jbaldwin/WCAS2023'
 ```
 
-4) Add the following line to your ~/.bashrc file, replacing /home/jbaldwin/WCAS2023 with the location of this code on your system:
+5) Add the following line to your ~/.bashrc file, replacing /home/jbaldwin/WCAS2023 with the location of this code on your system:
 ```
 export PYTHONPATH=/home/jbaldwin/WCAS2023/FUNCTIONS
 ```
