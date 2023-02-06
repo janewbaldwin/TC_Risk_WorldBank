@@ -18,7 +18,7 @@ To reproduce the paper results:
 `conda env create -f geopandas.yml`
 The worldbank environment is used for almost all of this project. The only exception is the notebooks in /REGION_MASKS which should be run in the geopandas environment.
 
-3) Change root_dir at the beginning of each script to the path to where you downloaded the project data. Initially this is set as: `root_dir = '/data2/jbaldwin/WCAS2023'`.
+3) Change root_dir at the beginning of each script to the path to where you downloaded the project data. Initially this is set as: ```root_dir = '/data2/jbaldwin/WCAS2023'```.
 
 4) Add the following line to your ~/.bashrc file, replacing /home/jbaldwin/WCAS2023 with the location of this code on your system:
 `export PYTHONPATH=/home/jbaldwin/WCAS2023/FUNCTIONS`
