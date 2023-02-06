@@ -25,10 +25,15 @@ This allows you to import the custom library of functions that support this work
 
 ## CODE/DATA ORGANIZATION
 
-The code and data is organized into directories based on its purpose. Brief descriptions of the directory contents are below. Please refer to README files within each directory for details on what each script and function does, and the relevant paper figures it produces.
+The code and data is organized into directories based on its purpose. Brief descriptions of the directory contents are below. 
+Please refer to README files within each directory for details on what each script and function does, and the relevant paper figures it produces.
 
 * /FUNCTIONS: custom functions that support this work.
-* 
+* /REGION_MASKS: creates Philippines region masks to apply in later analysis of wind swaths and asset losses.
+* /EXPOSED_VALUE: converts the exposed value LitPop dataset into a netcdf form.
+* /HAZARD: produces wind swaths from tropical cyclone tracks (IBTrACS and CHAZ), and validates the swaths.
+* /ASSET_LOSSES: estimates asset losses from wind swaths for various vulnerability levels, and compares to EM-DAT observed losses.
+* /VULNERABILITY: calibrates vulnerability for regions by comparing to Philippines survey data.
 
 
 
