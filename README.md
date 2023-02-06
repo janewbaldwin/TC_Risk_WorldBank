@@ -26,7 +26,7 @@ conda env create -f geopandas.yml
 root_dir = '/data2/jbaldwin/WCAS2023'
 ```
 
-5) Add the following line to your ~/.bashrc file, replacing /home/jbaldwin/WCAS2023 with the location of this code on your system:
+5) Add the following line to your ~/.bashrc file, replacing `/home/jbaldwin/WCAS2023` with the location of this code on your system:
 ```
 export PYTHONPATH=/home/jbaldwin/WCAS2023/FUNCTIONS
 ```
