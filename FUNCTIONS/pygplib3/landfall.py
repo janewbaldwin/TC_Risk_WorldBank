@@ -10,6 +10,7 @@ from geopy.distance import VincentyDistance
 
 def get_landmask(filename):
 	"""
+	Written by Chia-Ying Lee (LDEO/Columbia).
 	read 0.25degree landmask.nc 
 	output:
 	lon: 1D
@@ -27,6 +28,7 @@ def get_landmask(filename):
 
 def rescale_matrix(array,scale,axis1):
 	"""
+	Written by Chia-Ying Lee (LDEO/Columbia).
 	rescale matrix through linear-interpolations a
 	if it is an 1-d arry, axis1 set to 0
 	"""
@@ -39,6 +41,7 @@ def rescale_matrix(array,scale,axis1):
 
 def get_landfall_stormID(lon,lat,wspd,llon,llat,ldmask,land,ocean):
 	"""
+	Written by Chia-Ying Lee (LDEO/Columbia).
 	get landfalling storms' ID. 
 	- lon, lat, and wspd are the trackset with dimentions of (nt, nS). nt is the 
 	track length while nS is the storn number
@@ -66,6 +69,7 @@ def get_landfall_stormID(lon,lat,wspd,llon,llat,ldmask,land,ocean):
 
 def get_landfall_storm_time(iSlandfall,lon,lat,wspd,xlon,xlat,ldmask,land,ocean,nscale):
 	"""
+	Written by Chia-Ying Lee (LDEO/Columbia).
 	using the landfall storms' ID (iSlandfall) from the function
 	"""
 	nSlandfall_first,nSlandfall_all,iTlandfall_first,iTlandfall_all = [],[],[],[]
