@@ -57,7 +57,7 @@ Jane W. Baldwin, Chia-Ying Lee, Brian Walsh, Suzana Camargo, and Adam Sobel. Vul
 
 **this will soon be replaced by the citation of the final publication in *Weather, Climate, and Society*.
 
-For details on the Columbia Tropical Cyclone Hazard model (CHAZ) and proper attribution of that product see: https://github.com/cl3225/CHAZ
+For details on the Columbia Tropical Cyclone Hazard model (CHAZ) and proper attribution of that product see: https://github.com/cl3225/CHAZ<br/>
 Synthetic storms from this model are analyzed in this paper.
 
 
