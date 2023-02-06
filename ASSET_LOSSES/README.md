@@ -11,3 +11,4 @@
 Note: all data used by these scripts is in the DesignSafe repository, and the below links for provided just for reference.
 * EM-DAT: The International Disaster Database | https://www.emdat.be/database
 * LitPop: Global Exposure Data for Disaster Risk Assessment | https://doi.org/10.3929/ethz-b-000331316
+* Penn World Table version 10.01 | https://doi.org/10.34894/QT5BCC
