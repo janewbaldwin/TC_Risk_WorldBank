@@ -44,7 +44,7 @@ These directories are listed in general order of how they should be run to repro
 
 Please cite this project as:
 
-Jane W. Baldwin, Chia-Ying Lee, Brian Walsh, et al. Vulnerability in a Tropical Cyclone Risk Model: Philippines Case Study. ESS Open Archive . April 08, 2022.
+Jane W. Baldwin, Chia-Ying Lee, Brian Walsh, Suzana Camargo, and Adam Sobel. Vulnerability in a Tropical Cyclone Risk Model: Philippines Case Study. ESS Open Archive . April 08, 2022.
 [DOI: 10.1002/essoar.10511053.1](https://essopenarchive.org/doi/full/10.1002/essoar.10511053.1)**
 
 **this will soon be replaced by the citation of the final publication in Weather, Climate, and Society.
