@@ -1,5 +1,6 @@
 import numpy as np
 
+# Written by Qidong Yang.
 
 X_2 = 25
 radius = np.linspace(0, 300, 151)
