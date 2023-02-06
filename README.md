@@ -63,11 +63,11 @@ Synthetic storms from this model are analyzed in this paper.
 
 ## Contributors: 
 Jane W. Baldwin (lead author and lead code developer, [Github](https://github.com/janewbaldwin), [webpage](https://www.janebaldw.in/))<br/>
-Chia-Ying Lee: (co-author and code contributor, [Github](https://github.com/cl3225), [webpage](https://sites.google.com/view/chia-ying/))<br/>
-Brian Walsh: (co-author, [Github](https://github.com/walshb1))<br/>
+Chia-Ying Lee (co-author and code contributor, [Github](https://github.com/cl3225), [webpage](https://sites.google.com/view/chia-ying/))<br/>
+Brian Walsh (co-author, [Github](https://github.com/walshb1))<br/>
 Suzana Camargo: (co-author. [webpage](https://www.ldeo.columbia.edu/~suzana/index.html))<br/>
-Adam Sobel: (co-author, [webpage](http://www.columbia.edu/~ahs129/home.html))<br/>
-Qidong Yang: (code contributor, [Github](https://github.com/qy707))
+Adam Sobel (co-author, [webpage](http://www.columbia.edu/~ahs129/home.html))<br/>
+Qidong Yang (code contributor, [Github](https://github.com/qy707))
 
 
 
