@@ -1,6 +1,11 @@
 # TC_Risk_WorldBank
 ## SUMMARY:
-This is code to support the paper "Vulnerability in a Tropical Cyclone Risk Model: Philippines Case Study" to be published in the journal Weather, Climate, and Society. Data to support this project can be found on the DesignSafe platform doi:XXXXXXXXXXX. This project produced a tropical cyclone risk (e.g. asset loss) model for the Philippines based on open-source data, geared at supporting nonprofit applications. The files and code included in this data repository allow for reproduction of the different model components (e.g. the hazard, vulnerability, and exposure layers) and the model validation. The data produced by this model and used in the publication are also made available here-- namely the tropical cyclone wind fields for observed and synthetic storms over the Philippines, the vulnerability and exposure layers, and the resultant asset losses. 
+This is code to support the paper "Vulnerability in a Tropical Cyclone Risk Model: Philippines Case Study" to be published in the journal Weather, Climate, and Society. Data to support this project can be found on the DesignSafe platform doi:XXXXXXXXXXX. 
+
+This project produced a tropical cyclone risk (e.g. asset loss) model for the Philippines based on open-source data, geared at supporting nonprofit applications. The files and code included in this data repository allow for reproduction of the different model components (e.g. the hazard, vulnerability, and exposure layers) and the model validation. The data produced by this model and used in the publication are also made available here-- namely the tropical cyclone wind fields for observed and synthetic storms over the Philippines, the vulnerability and exposure layers, and the resultant asset losses. 
+
+Please refer to this related project for details on the Columbia Tropical Cyclone Hazard model (CHAZ): https://github.com/cl3225/CHAZ
+Synthetic storms from this model are analyzed in this paper.
 
 
 ## INSTRUCTIONS FOR USE:
@@ -34,6 +39,8 @@ Please refer to README files within each directory for details on what each scri
 * /HAZARD: produces wind swaths from tropical cyclone tracks (IBTrACS and CHAZ), and validates the swaths.
 * /ASSET_LOSSES: estimates asset losses from wind swaths for various vulnerability levels, and compares to EM-DAT observed losses.
 * /VULNERABILITY: calibrates vulnerability for regions by comparing to Philippines survey data.
+
+These directories are listed in general order of how they should be run to reproduce all the work in this paper-- the one exception being that some of the code in /ASSET_LOSSES depends on results from /VULNERABILITY. However, data is provided on DesignSafe to support intermediate stages of analysis, so individual scripts can be also be run separately.
 
 
 
