@@ -79,6 +79,7 @@ def windfield_sym(X1,Y1,lon_nS,lat_nS,wspd_nS,rmax_nS,i):
 
 def windfield_orig(X1, Y1, lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     """
+    Written by Jane W. Baldwin (UC Irvine).
     Calculate wind field with asymmetry, but not subtracting max asymmetry from windspeed input to profile (so windfield values sometimes exceed maximum sustained windspeed).
 
     :param X1: 2-D matrix of longitudes in degrees to put windfield on.
@@ -135,6 +136,7 @@ def windfield_orig(X1, Y1, lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
 
 def windfield(X1, Y1, lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
     """
+    Written by Jane W. Baldwin (UC Irvine).
     Calculate wind field with asymmetry, subtracting max asymmetry correction from maximum sustained windspeed  before calculating wind profile, so that wind field values do not exceed maximum sustained wind speed.
     
     :param X1: 2-D matrix of longitudes in degrees to put windfield on.
@@ -193,6 +195,7 @@ def windfield(X1, Y1, lon_nS,lat_nS,wspd_nS,rmax_nS,tr_nS,trDir_nS,i):
 
 def landfall_in_box(lonmin,lonmax,latmin,latmax,lon,lat,wspd,llon_midpoint):
     """
+    Written by Jane W. Baldwin (UC Irvine).
     Determine which storms make landfall in a rectangular region and when those landfalls occur.
     Typically input lon, lat, wspd are interpolated to 15 minute temporal resolution before being input to this function.
     
