@@ -2,6 +2,8 @@ import numpy as np
 
 def haversine(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
     """
+    Calculate distance between particular lat-lon point (eg center point of storm) and each point of lat-lon grid using Haversine formulation.    
+    Adopted from: https://kite.com/python/answers/how-to-find-the-distance-between-two-lat-long-coordinates-in-python
     Calculate the great circle distance between two points on the 
     earth (specified in decimal degrees), returns the distance in
     meters.    All arguments must be of equal length.    :param lon1: longitude of first place
