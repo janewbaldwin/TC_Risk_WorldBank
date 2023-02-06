@@ -61,6 +61,14 @@ For details on the Columbia Tropical Cyclone Hazard model (CHAZ) and proper attr
 Synthetic storms from this model are analyzed in this paper.
 
 
+## Contributors: 
+Jane W. Baldwin (lead author and lead code developer, [Github profile](https://github.com/janewbaldwin), [webpage](https://www.janebaldw.in/))
+Chia-Ying Lee: (co-author and code contributor, [Github profile](https://github.com/cl3225), [webpage](https://sites.google.com/view/chia-ying/))
+Brian Walsh: (co-author, [Github profile](https://github.com/walshb1))
+Suzana Camargo: (co-author. [webpage](https://www.ldeo.columbia.edu/~suzana/index.html))
+Adam Sobel: (co-author, [webpage](http://www.columbia.edu/~ahs129/home.html))
+Qidong Yang: (code contributor, [Github profile](https://github.com/qy707))
+
 
 
 
