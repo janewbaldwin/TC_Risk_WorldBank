@@ -6,6 +6,7 @@ from datetime import datetime,timedelta
 
 class read_ibtracs_v4(object):
 	"""
+	Written by Chia-Ying Lee (LDEO/Columbia).
 	a function read /data2/clee/bttracks/IBTrACS.ALL.v04r00.nc
 	netCDF4 library is required
 	we use all USA agency - usa_lat, usa_lon, etc 

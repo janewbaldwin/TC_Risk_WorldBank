@@ -12,6 +12,7 @@ er = 6371.0  # km
 
 def knaff15(wspd, lat):
     '''
+    Written by Chia-Ying Lee (LDEO/Columbia) based on Knaff et al 2015 "Improved Tropical-Cyclone Flight-Level Wind Estimates Using Routine Infrared Satellite Reconnaissance."
     wspd in kt, rmw in n. mile
     '''
     rmw = (218.3784-1.2014*wspd+(wspd/10.9844)**2
@@ -21,6 +22,7 @@ def knaff15(wspd, lat):
 
 def translationspeedFactor(r):
     """
+    Written by Chia-Ying Lee (LDEO/Columbia) based on information from Lin and Chavas 2012 "On hurricane parametric wind and applications in storm surge modeling."
     alpha = [0.4,0.7], r = [0,1], alpha = ar+b, a = 0.3, b = 0.4
     alpha =[0.7,0.5], r=[1,9] fix with exponetnal: exp(-0.314-0.042*np.array(r))
     """
@@ -32,7 +34,9 @@ def translationspeedFactor(r):
 
 
 def getStormTranslation(lon, lat, time):
-
+    """
+    Written by Milan Curcic (University of Miami).
+    """
     timeInt = []
     lonInt = []
     latInt = []

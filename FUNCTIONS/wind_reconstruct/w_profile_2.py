@@ -1,5 +1,5 @@
-# Revised to make input of radii and stepping to calculate profile on flexible.
-# by Jane 11-4-20
+# Original version by by Qidong Yang.
+# Revised to make input of radii and stepping to calculate profile on flexible by Jane W. Baldwin.
 import numpy as np
 
 

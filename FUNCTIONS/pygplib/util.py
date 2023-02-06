@@ -19,6 +19,7 @@ import copy
 
 def argminDatetime(time0, time):
     """
+    Written by Chia-Ying Lee (LDEO/Columbia).
     Returns the index of datetime array time for which
     the datetime time0 is nearest.
     """
