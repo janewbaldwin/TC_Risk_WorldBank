@@ -6,7 +6,7 @@ import scipy
 from netCDF4 import Dataset
 from scipy.io import netcdf_file
 from scipy import interpolate
-from geopy.distance import VincentyDistance
+from geopy.distance import geodesic
 
 def get_landmask(filename):
 	"""
@@ -114,7 +114,7 @@ def get_landfall_storm_time(iSlandfall,lon,lat,wspd,xlon,xlat,ldmask,land,ocean,
 			#### landfall points with criteria
 			if len(index_enter_land)>1:
 				for x in range(1,len(index_leave_land)):
-					difDis = VincentyDistance((datalonlat[x,1],datalonlat[x,0]),(datalonlat[x-1,1],datalonlat[x-1,0])).kilometers
+					difDis = geodesic((datalonlat[x,1],datalonlat[x,0]),(datalonlat[x-1,1],datalonlat[x-1,0])).kilometers
 					difTime = (index_leave_land[x]-index_enter_land[x])*6./(1.0*nscale) # hours in float
 					#### if leaving land points are 80km larger than the previous landfall points, keep the indecies
 					#### of if the leaving point is 6 hours from the next landfall points
